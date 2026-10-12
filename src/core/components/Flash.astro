@@ -1,0 +1,39 @@
+---
+import { pad3 } from '../format';
+
+interface Props {
+	kind: 'ok' | 'error';
+	message: string;
+	similarId?: number | null;
+	builtCycle?: number | null;
+}
+
+const { kind, message, similarId, builtCycle } = Astro.props;
+---
+
+<p
+	role={kind === 'error' ? 'alert' : 'status'}
+	class:list={['m-0 border-2 border-ink p-4 text-[15px] font-medium', kind === 'ok' ? 'bg-ok' : 'bg-accent-soft']}
+>
+	{message}
+	{
+		similarId && (
+			<>
+				{' '}
+				<a href={`#idea-${similarId}`} class="font-semibold">
+					See the similar idea →
+				</a>
+			</>
+		)
+	}
+	{
+		builtCycle && (
+			<>
+				{' '}
+				<a href={`/build?cycle=${builtCycle}`} class="font-semibold">
+					See cycle {pad3(builtCycle)} →
+				</a>
+			</>
+		)
+	}
+</p>

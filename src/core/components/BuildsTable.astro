@@ -1,0 +1,95 @@
+---
+import type { CycleStatus } from '../cycle/history';
+import { pad3, shortDate } from '../format';
+import ResultChip from './ResultChip.astro';
+
+type Row = {
+	cycle: number;
+	ideaText: string;
+	votes: number;
+	status: CycleStatus;
+	note: string | null;
+	commitSha: string | null;
+	linesAdded: number;
+	linesRemoved: number;
+	startedAt: string;
+	/** False for a closed window that has no build page. */
+	hasBuild?: boolean;
+	authorLabel?: string | null;
+	authorHandle?: string;
+};
+
+interface Props {
+	builds: Row[];
+	dark?: boolean;
+	/** Highlight this cycle as the one being viewed. */
+	current?: number;
+	/** Extra columns for the full changelog. */
+	detailed?: boolean;
+}
+
+const { builds, dark = false, current, detailed = false } = Astro.props;
+const line = dark ? 'border-night-line' : 'border-line';
+const head = 'px-[18px] py-3.5 text-left font-mono text-[12px] font-medium tracking-[0.08em] text-silver uppercase';
+---
+
+<div class:list={['overflow-x-auto border-2', dark ? 'border-white' : 'border-ink bg-card']}>
+	<table class="w-full min-w-[640px] border-collapse text-base">
+		<thead>
+			<tr class:list={[!dark && 'bg-[#f6f7f8]']}>
+				<th scope="col" class:list={[head, 'border-b', line, !dark && 'text-muted']}>Cycle</th>
+				<th scope="col" class:list={[head, 'border-b', line, !dark && 'text-muted']}>Idea</th>
+				{detailed && <th scope="col" class:list={[head, 'border-b', line, 'text-muted']}>Votes</th>}
+				<th scope="col" class:list={[head, 'border-b', line, !dark && 'text-muted']}>Result</th>
+				{detailed && <th scope="col" class:list={[head, 'border-b', line, 'text-muted']}>Change</th>}
+				<th scope="col" class:list={[head, 'border-b', line, !dark && 'text-muted']}>Commit</th>
+			</tr>
+		</thead>
+		<tbody>
+			{
+				builds.map((build) => (
+					<tr class:list={[current === build.cycle && (dark ? 'bg-[#1c1f23]' : 'bg-[#fff4c7]')]}>
+						<td class:list={['border-b px-[18px] py-4 font-mono', line]}>
+							{build.hasBuild === false ? (
+								pad3(build.cycle)
+							) : (
+								<a href={`/build?cycle=${build.cycle}`} class:list={[dark ? 'text-accent-soft' : 'text-ink']}>
+									{pad3(build.cycle)}
+								</a>
+							)}
+						</td>
+						<td class:list={['border-b px-[18px] py-4', line, dark ? 'text-white' : 'text-ink']}>
+							<span class:list={['block font-semibold', build.status === 'skipped' && 'text-muted']}>{build.ideaText}</span>
+							{detailed && (
+								<span class="mt-1 block font-mono text-[12px] text-muted">
+									{[build.authorLabel ?? (build.authorHandle ? `@${build.authorHandle}` : null), shortDate(build.startedAt)]
+										.filter(Boolean)
+										.join(' · ')}
+								</span>
+							)}
+						</td>
+						{detailed && <td class:list={['border-b px-[18px] py-4 font-mono', line]}>{build.votes}</td>}
+						<td class:list={['border-b px-[18px] py-4', line]}>
+							<ResultChip build={build} />
+						</td>
+						{detailed && (
+							<td class:list={['border-b px-[18px] py-4 font-mono text-[14px] whitespace-nowrap', line]}>
+								{build.linesAdded || build.linesRemoved ? (
+									<>
+										<span class="text-[#1e7a3c]">+{build.linesAdded}</span>{' '}
+										<span class="text-[#c2410c]">−{build.linesRemoved}</span>
+									</>
+								) : (
+									'—'
+								)}
+							</td>
+						)}
+						<td class:list={['border-b px-[18px] py-4 font-mono', line, !build.commitSha && 'text-dim']}>
+							{build.commitSha ?? '—'}
+						</td>
+					</tr>
+				))
+			}
+		</tbody>
+	</table>
+</div>

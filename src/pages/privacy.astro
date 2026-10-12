@@ -1,0 +1,76 @@
+---
+import Icon from '../core/components/Icon.astro';
+import Shell from '../core/components/Shell.astro';
+
+const kept = [
+	'Which provider you signed in with (X, Google or GitHub) and your account id there.',
+	'Your username or display name, and the address of your avatar picture.',
+	'Your ideas and your votes.',
+	'Anything you add through features built here, like a guestbook entry or a square on a canvas, shown with your username.',
+	'A session cookie that keeps you signed in for up to 30 days.',
+];
+
+const notKept = [
+	'Your email address. We never ask for it.',
+	'Your password. You sign in on your provider’s own page.',
+	'Access to your account. The provider’s token is used once to read your public profile, then thrown away. We can’t post for you.',
+	'Trackers, analytics or ads. There are none on this site.',
+];
+
+const control = [
+	'Sign out at any time from the top of the page.',
+	'Take back any vote, and withdraw your idea, any time before the voting window’s timer ends.',
+	'Remove anything you added through a feature on the site. The person running the site can remove anything that breaks the rules.',
+	'Once a window closes, its winning idea stays in the public history of the site, credited to its author.',
+	'Full account deletion will be self-service before the public launch. Until then, ask the person running the site.',
+];
+---
+
+<Shell title="Privacy" description="What this site keeps about you, and what it doesn't.">
+	<main class="wrap flex flex-col gap-12 pt-14 pb-24">
+		<div class="flex flex-col gap-4">
+			<p class="eyebrow m-0">Privacy</p>
+			<h1 class="h-display m-0 max-w-4xl" style="font-size: clamp(44px, 6.4vw, 88px)">
+				We keep as little as <span class="hl">we can</span>.
+			</h1>
+		</div>
+
+		<div class="flex flex-wrap gap-8">
+			<section aria-labelledby="kept-title" class="min-w-0 flex-[1_1_380px] border-2 border-ink bg-card p-7">
+				<h2 id="kept-title" class="m-0 mb-4 flex items-center gap-3 font-display text-3xl font-bold">
+					<Icon name="shield-lock" class="size-8" />What we keep
+				</h2>
+				<ul class="m-0 flex flex-col gap-3 pl-5 text-[17px] leading-normal">
+					{kept.map((line) => <li>{line}</li>)}
+				</ul>
+			</section>
+			<section aria-labelledby="not-title" class="min-w-0 flex-[1_1_380px] border-2 border-ink bg-card p-7">
+				<h2 id="not-title" class="m-0 mb-4 flex items-center gap-3 font-display text-3xl font-bold">
+					<Icon name="eye-off" class="size-8" />What we don’t
+				</h2>
+				<ul class="m-0 flex flex-col gap-3 pl-5 text-[17px] leading-normal">
+					{notKept.map((line) => <li>{line}</li>)}
+				</ul>
+			</section>
+		</div>
+
+		<section aria-labelledby="control-title" class="border-2 border-ink bg-sun p-7">
+			<h2 id="control-title" class="m-0 mb-4 flex items-center gap-3 font-display text-3xl font-bold">
+				<Icon name="trash" class="size-8" />You’re in control
+			</h2>
+			<ul class="m-0 flex flex-col gap-3 pl-5 text-[17px] leading-normal">
+				{control.map((line) => <li>{line}</li>)}
+			</ul>
+		</section>
+
+		<p class="m-0 max-w-3xl text-[15px] leading-normal text-muted">
+			One exception to “nothing from outside”: avatar pictures load from your sign-in provider’s image server (GitHub,
+			Google or X), the same way they appear on those sites. Ideas and usernames are public on this site — that’s the
+			point of it.
+		</p>
+		<p class="m-0 max-w-3xl text-[15px] leading-normal text-muted">
+			The text of your idea is sent to Claude, Anthropic’s AI, to check it against the rules. If it wins, it’s sent
+			again with your username so the AI can build it and credit you. Nothing else about you is sent.
+		</p>
+	</main>
+</Shell>

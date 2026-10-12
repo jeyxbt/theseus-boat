@@ -1,0 +1,174 @@
+---
+import type { SessionUser } from '../auth/session';
+import { IDEA_MAX, IDEA_MIN, type Idea } from '../db/schema';
+import { MAX_EDITS } from '../ideas/queries';
+
+interface Props {
+	user: SessionUser | null;
+	myIdea: Idea | null;
+	draft: string | null;
+}
+
+const { user, myIdea, draft } = Astro.props;
+const editsLeft = myIdea ? MAX_EDITS - myIdea.edits : MAX_EDITS;
+const canEdit = Boolean(myIdea && editsLeft > 0);
+const text = draft ?? myIdea?.body ?? '';
+const textareaClass =
+	'box-border min-h-[110px] w-full resize-y border-2 border-ink bg-field p-3 text-base leading-[1.45] disabled:cursor-not-allowed disabled:opacity-60';
+---
+
+<section aria-labelledby="propose-title" class="flex flex-col gap-3.5 border-2 border-ink bg-card p-6">
+	<div class="flex items-baseline justify-between gap-3">
+		<h2 id="propose-title" class="m-0 font-display text-2xl font-bold tracking-[-0.01em]">Your idea</h2>
+		{
+			myIdea && (
+				<span class="font-mono text-[13px] text-muted">
+					{editsLeft} / {MAX_EDITS} edits left
+				</span>
+			)
+		}
+	</div>
+
+	{
+		!user && (
+			<>
+				<label for="idea-body" class="text-sm text-muted">
+					What should this site do that it doesn’t yet?
+				</label>
+				<textarea id="idea-body" rows="4" disabled class={textareaClass} placeholder="Sign in to propose an idea" />
+				<a href="/signin?returnTo=%2Fideas" class="btn bg-accent text-ink hover:text-ink">
+					Sign in to propose
+				</a>
+			</>
+		)
+	}
+
+	{
+		user && !myIdea && (
+			<form method="post" action="/api/ideas" class="m-0 flex flex-col gap-3.5">
+				<label for="idea-body" class="text-sm text-muted">
+					What should this site do that it doesn’t yet?
+				</label>
+				<textarea
+					id="idea-body"
+					name="body"
+					rows="4"
+					required
+					minlength={IDEA_MIN}
+					maxlength={IDEA_MAX}
+					data-idea-input
+					data-saved=""
+					class={textareaClass}
+					placeholder="e.g. a wall where everyone leaves one word for today"
+					set:text={text}
+				/>
+				<div class="flex items-center justify-between gap-3">
+					<span data-idea-count class="font-mono text-[13px] text-muted">
+						{text.length} / {IDEA_MAX}
+					</span>
+					<button type="submit" data-idea-submit class="btn bg-accent px-5 text-ink disabled:cursor-wait disabled:opacity-70">
+						Submit idea
+					</button>
+				</div>
+				<p class="m-0 text-[13px] leading-normal text-muted">
+					One idea at a time. You can edit it {MAX_EDITS} times or withdraw it.
+				</p>
+			</form>
+		)
+	}
+
+	{
+		myIdea && canEdit && (
+			<form method="post" action={`/api/ideas/${myIdea.id}/edit`} class="m-0 flex flex-col gap-3.5">
+				<label for="idea-body" class="text-sm text-muted">
+					Your idea is on the board. Saving an edit resets its votes.
+				</label>
+				<textarea
+					id="idea-body"
+					name="body"
+					rows="4"
+					required
+					minlength={IDEA_MIN}
+					maxlength={IDEA_MAX}
+					data-idea-input
+					data-saved={myIdea.body}
+					class={textareaClass}
+					set:text={text}
+				/>
+				<div class="flex items-center justify-between gap-3">
+					<span data-idea-count class="font-mono text-[13px] text-muted">
+						{text.length} / {IDEA_MAX}
+					</span>
+					<button type="submit" data-idea-submit class="btn bg-accent px-5 text-ink disabled:cursor-wait disabled:opacity-70">
+						Save changes
+					</button>
+				</div>
+			</form>
+		)
+	}
+
+	{
+		myIdea && !canEdit && (
+			<>
+				<p class="m-0 border-2 border-ink bg-field p-3 text-base leading-[1.45]">{myIdea.body}</p>
+				<p class="m-0 text-[13px] text-muted">You’ve used all {MAX_EDITS} edits.</p>
+			</>
+		)
+	}
+
+	{
+		myIdea && (
+			<details class="group border-t border-line pt-3">
+				<summary class="cursor-pointer text-[14px] font-semibold text-muted hover:text-ink">Withdraw my idea</summary>
+				<form method="post" action={`/api/ideas/${myIdea.id}/withdraw`} class="m-0 mt-3 flex flex-col gap-3">
+					<p class="m-0 text-[14px] text-body">
+						It leaves the board and its votes go back to the people who cast them. You can propose a new idea
+						right after.
+					</p>
+					<button type="submit" class="btn self-start bg-card text-ink">
+						Yes, withdraw it
+					</button>
+				</form>
+			</details>
+		)
+	}
+</section>
+
+<script>
+	const MIN = 16;
+	const MAX = 280;
+
+	function update(input: HTMLTextAreaElement) {
+		const count = input.form?.querySelector<HTMLElement>('[data-idea-count]');
+		if (!count) return;
+		const length = input.value.trim().length;
+		count.textContent = `${input.value.length} / ${MAX}`;
+		count.classList.toggle('text-[#c2410c]', length > 0 && length < MIN);
+		count.classList.toggle('text-muted', !(length > 0 && length < MIN));
+	}
+
+	for (const input of document.querySelectorAll<HTMLTextAreaElement>('[data-idea-input]')) {
+		input.addEventListener('input', () => update(input));
+		update(input);
+	}
+
+	// The AI check can take a few seconds: say so, and don't let a second click send it twice.
+	const buttons = [...document.querySelectorAll<HTMLButtonElement>('[data-idea-submit]')];
+	for (const button of buttons) {
+		button.dataset.label = button.textContent?.trim() ?? '';
+		button.form?.addEventListener('submit', () => {
+			button.disabled = true;
+			button.setAttribute('aria-busy', 'true');
+			button.textContent = 'Checking…';
+		});
+	}
+	// Coming back with the back button restores the page as it was left.
+	window.addEventListener('pageshow', (event) => {
+		if (!event.persisted) return;
+		for (const button of buttons) {
+			button.disabled = false;
+			button.removeAttribute('aria-busy');
+			button.textContent = button.dataset.label ?? '';
+		}
+	});
+</script>

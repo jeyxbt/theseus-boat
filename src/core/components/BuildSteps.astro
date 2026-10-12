@@ -1,0 +1,52 @@
+---
+import { STEPS, type StepState } from '../builds/queries';
+import { pad2 } from '../format';
+
+interface Props {
+	states: StepState[];
+}
+
+const { states } = Astro.props;
+const look: Record<StepState, string> = {
+	active: 'bg-accent text-ink',
+	done: 'bg-[#1c1f23] text-white',
+	failed: 'bg-accent-soft text-ink',
+	waiting: 'bg-ink text-dim',
+};
+---
+
+<ol
+	aria-label="Build steps"
+	class="m-0 grid list-none grid-cols-[repeat(auto-fit,minmax(170px,1fr))] border-2 border-white p-0"
+>
+	{
+		STEPS.map((step, index) => (
+			<li
+				class:list={[
+					'relative flex min-h-[150px] flex-col gap-3.5 overflow-hidden border-r border-b border-[#3a3f46] p-5',
+					look[states[index]],
+				]}
+			>
+				<div class="flex items-center justify-between">
+					<span class="font-mono text-[13px]">{pad2(index + 1)}</span>
+					{states[index] === 'done' && (
+						<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="done">
+							<path d="M5 12l5 5L20 7" />
+						</svg>
+					)}
+					{states[index] === 'active' && (
+						<span class="pw-pulse size-3 rounded-full bg-ink" role="img" aria-label="in progress" />
+					)}
+					{states[index] === 'failed' && (
+						<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" role="img" aria-label="failed">
+							<path d="M6 6l12 12M18 6L6 18" />
+						</svg>
+					)}
+				</div>
+				<span class="font-display text-[22px] leading-[1.1] font-bold tracking-[-0.01em]">{step.title}</span>
+				<span class="text-sm leading-[1.4] opacity-85">{step.note}</span>
+				{states[index] === 'active' && <div class="pw-stripes absolute inset-x-0 bottom-0 h-1.5" />}
+			</li>
+		))
+	}
+</ol>

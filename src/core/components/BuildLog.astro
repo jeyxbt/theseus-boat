@@ -1,0 +1,46 @@
+---
+import type { BuildEvent } from '../db/schema';
+import { clock } from '../format';
+
+interface Props {
+	events: BuildEvent[];
+	live: boolean;
+	/** Show only the last N lines. */
+	tail?: number;
+	animate?: boolean;
+}
+
+const { events, live, tail, animate = true } = Astro.props;
+const lines = tail ? events.slice(-tail) : events;
+
+const TAG_COLOURS: Record<string, string> = {
+	window: 'text-sun',
+	winner: 'text-sun',
+	git: 'text-sun',
+	ai: 'text-info',
+	build: 'text-info',
+	deploy: 'text-info',
+	checks: 'text-ok',
+	guard: 'text-ok',
+	smoke: 'text-ok',
+	repair: 'text-accent-soft',
+	rollback: 'text-bad',
+	failed: 'text-bad',
+	live: 'text-accent',
+};
+---
+
+<div class="overflow-x-auto p-[18px] font-mono text-sm leading-[1.9]" data-build-log>
+	{
+		lines.map((event, index) => (
+			<div class:list={['whitespace-pre', animate && 'pw-in']} style={animate ? `animation-delay: ${index * 120}ms` : undefined}>
+				<span class="text-dim">{clock(event.ts)}</span>
+				{'  '}
+				<span class:list={['inline-block w-[7ch]', TAG_COLOURS[event.tag] ?? 'text-silver']}>{event.tag}</span>
+				{'  '}
+				<span class="text-[#e6e8eb]">{event.message}</span>
+			</div>
+		))
+	}
+	{live && <span class="pw-caret text-accent" data-build-caret>█</span>}
+</div>

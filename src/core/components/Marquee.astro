@@ -1,0 +1,22 @@
+---
+interface Props {
+	items: string[];
+}
+
+const { items } = Astro.props;
+// The strip scrolls by half its width, so the list is repeated to loop seamlessly.
+const repeated = items.length > 0 ? [...items, ...items, ...items, ...items].slice(0, Math.max(8, items.length * 2)) : [];
+const loop = [...repeated, ...repeated];
+---
+
+{
+	items.length > 0 && (
+		<div aria-hidden="true" class="overflow-hidden border-y-2 border-ink bg-sun whitespace-nowrap">
+			<div class="pw-marquee inline-flex gap-12 py-3.5 font-display text-[22px] font-bold tracking-[-0.01em]">
+				{loop.map((item) => (
+					<span>Shipped: {item} ✦</span>
+				))}
+			</div>
+		</div>
+	)
+}

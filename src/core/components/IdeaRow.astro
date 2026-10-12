@@ -1,0 +1,55 @@
+---
+import { displayName } from '../auth/session';
+import { pad2, timeAgo } from '../format';
+import type { IdeaRow } from '../ideas/queries';
+
+interface Props {
+	idea: IdeaRow;
+	rank: number;
+	maxVotes: number;
+	leading: boolean;
+	mine: boolean;
+	voted?: boolean;
+}
+
+const { idea, rank, maxVotes, leading, mine, voted = false } = Astro.props;
+const width = maxVotes > 0 ? Math.round((idea.votes / maxVotes) * 100) : 0;
+---
+
+<li
+	id={`idea-${idea.id}`}
+	data-idea={idea.id}
+	data-rank={rank}
+	class:list={[
+		'flex scroll-mt-6 flex-wrap items-center gap-x-[22px] gap-y-3.5 border-2 border-ink bg-card px-[22px] py-5 target:outline-[3px] target:outline-blue target:outline-offset-2 target:outline',
+		leading && 'shadow-accent',
+	]}
+>
+	<span
+		class:list={['w-12 font-display text-4xl leading-none font-extrabold', leading ? 'text-ink' : 'text-[#5a6068]']}
+		>{pad2(rank)}</span
+	>
+	<div class="flex min-w-0 flex-[999_1_300px] flex-col gap-2.5">
+		<p class="m-0 text-[19px] leading-[1.35] font-semibold break-words">{idea.body}</p>
+		<div class="flex flex-wrap gap-x-4 gap-y-1.5 font-mono text-[13px] text-muted">
+			<span>{displayName({ provider: idea.authorProvider, handle: idea.authorHandle })}</span>
+			<span>{timeAgo(idea.createdAt)}</span>
+			{mine && <span class="bg-sun px-1.5 text-ink">your idea</span>}
+		</div>
+		<div class="h-1.5 bg-fog" aria-hidden="true">
+			<div
+				data-bar
+				class:list={['h-full transition-[width] duration-300', voted ? 'bg-accent' : 'bg-ink']}
+				style={`width: ${width}%`}
+			>
+			</div>
+		</div>
+	</div>
+	<div class="flex flex-[1_0_auto] items-center justify-end gap-3.5">
+		<span class="min-w-11 text-right font-mono text-base font-medium">
+			<span data-votes>{idea.votes}</span>
+			<span class="sr-only"> votes</span>
+		</span>
+		<slot name="action" />
+	</div>
+</li>

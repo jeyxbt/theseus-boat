@@ -1,0 +1,9 @@
+# Same line endings on Windows and Linux, so diffs and guards see the same bytes.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.avif binary
+*.gif binary
+*.woff2 binary

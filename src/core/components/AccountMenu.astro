@@ -1,0 +1,61 @@
+---
+import { displayName, getSessionUser } from '../auth/session';
+
+interface Props {
+	dark?: boolean;
+}
+
+const { dark = false } = Astro.props;
+const user = await getSessionUser(Astro);
+const path = Astro.url.pathname;
+const returnTo = path === '/signin' ? '/' : path + Astro.url.search;
+const initial = user ? user.handle.replace(/^@/, '').charAt(0).toUpperCase() : '';
+---
+
+{
+	user ? (
+		<div class="flex items-center gap-3">
+			{user.avatarUrl ? (
+				<img
+					src={user.avatarUrl}
+					alt=""
+					width="34"
+					height="34"
+					referrerpolicy="no-referrer"
+					class:list={['size-[34px] border-2 object-cover', dark ? 'border-white' : 'border-ink']}
+				/>
+			) : (
+				<span
+					aria-hidden="true"
+					class:list={[
+						'flex size-[34px] items-center justify-center border-2 bg-sun font-display font-extrabold text-ink',
+						dark ? 'border-white' : 'border-ink',
+					]}
+				>
+					{initial}
+				</span>
+			)}
+			<span class:list={['font-mono text-[13px]', dark ? 'text-white' : 'text-ink']}>{displayName(user)}</span>
+			<form method="post" action="/api/auth/logout" class="m-0">
+				<button
+					type="submit"
+					data-essential="account-signout"
+					class:list={[
+						'btn min-h-11 px-3 text-[14px]',
+						dark ? 'border-white bg-transparent text-white' : 'bg-card text-ink',
+					]}
+				>
+					Sign out
+				</button>
+			</form>
+		</div>
+	) : (
+		<a
+			href={`/signin?returnTo=${encodeURIComponent(returnTo)}`}
+			data-essential="account-signin"
+			class:list={['btn text-[15px]', dark ? 'border-white bg-white text-ink' : 'bg-ink text-white hover:text-white']}
+		>
+			Sign in
+		</a>
+	)
+}

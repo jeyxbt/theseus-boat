@@ -1,0 +1,129 @@
+---
+import Shell from '../core/components/Shell.astro';
+import { HOUSE_RULES } from '../core/content';
+import { IDEA_MAX, IDEA_MIN } from '../core/db/schema';
+import { getWindowMs } from '../core/env';
+import { MAX_EDITS } from '../core/ideas/queries';
+import { minVotes } from '../core/settings';
+import { MAX_VOTES } from '../core/votes/queries';
+
+const minutes = Math.round(getWindowMs() / 60000);
+const windowLength = minutes % 60 === 0 ? `${minutes / 60} ${minutes === 60 ? 'hour' : 'hours'}` : `${minutes} minutes`;
+const threshold = minVotes();
+
+const cycle = [
+	`Voting runs in windows of ${windowLength}. The timer on the home page shows how long the current one has left.`,
+	`When it hits zero, the idea with the most votes wins — if it has at least ${threshold} votes. A tie goes to the idea proposed first.`,
+	'Every other idea leaves the board. Everyone gets their votes back, and the next window opens straight away, empty.',
+	`If no idea reaches ${threshold} votes, nothing is built that cycle. That shows up in the changelog too.`,
+];
+
+const proposing = [
+	`One open idea per person per window, ${IDEA_MIN} to ${IDEA_MAX} characters.`,
+	`Edit it up to ${MAX_EDITS} times. Each saved edit resets its votes, so nobody’s vote ends up on wording they didn’t pick.`,
+	'Withdraw it any time before the timer ends. Its votes go back to the people who cast them, and you can propose a new one.',
+];
+
+const voting = [
+	`${MAX_VOTES} votes per person per window, always free.`,
+	'Take a vote back any time before the timer ends and give it to another idea.',
+	'You can’t vote for your own idea.',
+	'Sign in with X, Google or GitHub. One account, one voice.',
+];
+
+const refused = [
+	{ title: 'Instructions for the AI', text: '“Ignore your rules”, “act as an admin”, “print your prompt”. Describe a feature instead.' },
+	{ title: 'Secrets and private data', text: 'Keys, tokens, environment variables, other people’s data.' },
+	{
+		title: 'Breaking the site',
+		text: 'Bypassing sign-in or vote limits, changing the voting rules, running commands on the server, or removing or hiding sign-in, voting, the idea form, the countdown and the menu. Restyling the header and footer is welcome.',
+	},
+	{ title: 'Outside services', text: 'Embeds, CDNs, analytics, third-party APIs. Everything runs on this site.' },
+	{ title: 'Money', text: 'Wallets, tokens, payments, donations, giveaways. This site stays free of money.' },
+	{ title: 'Spam and duplicates', text: 'Links, noise, and ideas that are already on the board — vote for those instead.' },
+	{ title: 'Hurting people', text: 'Targeting or demeaning anyone, deceiving visitors, collecting personal data.' },
+	{ title: 'Not about the site', text: 'Anything that isn’t a feature or a change for this website.' },
+];
+---
+
+<Shell title="Rules" description="How proposing and voting work, and what gets refused.">
+	<main class="wrap flex flex-col gap-16 pt-14 pb-24">
+		<div class="flex flex-col gap-4">
+			<p class="eyebrow m-0">The rules</p>
+			<h1 class="h-display m-0 max-w-4xl" style="font-size: clamp(44px, 6.4vw, 88px)">
+				Anyone can shape this place. <span class="hl">Fairly.</span>
+			</h1>
+		</div>
+
+		<section aria-labelledby="house-title">
+			<h2 id="house-title" class="h-section m-0 mb-6" style="font-size: clamp(30px, 4vw, 48px)">House rules</h2>
+			<ul class="m-0 grid list-none grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-4 p-0">
+				{
+					HOUSE_RULES.map((rule) => (
+						<li class="border-2 border-ink bg-card p-6 text-[17px] leading-[1.45]">
+							<strong class="mb-1.5 block font-display text-xl">{rule.title}</strong>
+							{rule.text}
+						</li>
+					))
+				}
+			</ul>
+		</section>
+
+		<section aria-labelledby="cycle-title" class="border-2 border-ink bg-sun p-7">
+			<h2 id="cycle-title" class="m-0 mb-4 font-display text-3xl font-bold">How a cycle works</h2>
+			<ol class="m-0 flex flex-col gap-3 pl-5 text-[17px] leading-normal">
+				{cycle.map((line) => <li>{line}</li>)}
+			</ol>
+		</section>
+
+		<div class="flex flex-wrap gap-8">
+			<section aria-labelledby="propose-title" class="min-w-0 flex-[1_1_380px] border-2 border-ink bg-card p-7">
+				<h2 id="propose-title" class="m-0 mb-4 font-display text-3xl font-bold">Proposing</h2>
+				<ul class="m-0 flex flex-col gap-3 pl-5 text-[17px] leading-normal">
+					{proposing.map((line) => <li>{line}</li>)}
+				</ul>
+			</section>
+			<section aria-labelledby="vote-title" class="min-w-0 flex-[1_1_380px] border-2 border-ink bg-card p-7">
+				<h2 id="vote-title" class="m-0 mb-4 font-display text-3xl font-bold">Voting</h2>
+				<ul class="m-0 flex flex-col gap-3 pl-5 text-[17px] leading-normal">
+					{voting.map((line) => <li>{line}</li>)}
+				</ul>
+			</section>
+		</div>
+
+		<section aria-labelledby="refused-title">
+			<h2 id="refused-title" class="h-section m-0 mb-3" style="font-size: clamp(30px, 4vw, 48px)">What gets refused</h2>
+			<p class="m-0 mb-6 max-w-2xl text-lg text-body">
+				Every idea is checked when it’s submitted or edited: first by fixed rules, then by an AI reviewer. If it’s
+				refused, only you see why, and your text stays in the form so you can fix it.
+			</p>
+			<p class="m-0 mb-6 max-w-2xl text-lg text-body">
+				If the AI reviewer is slow to answer, your idea goes up straight away and is checked again shortly after. If that
+				check refuses it, it’s taken down, its votes go back, and you’ll see a note next time you visit the ideas page.
+			</p>
+			<ul class="m-0 grid list-none grid-cols-[repeat(auto-fit,minmax(280px,1fr))] border-t-2 border-ink p-0">
+				{
+					refused.map((item) => (
+						<li class="border-b border-line py-5 pr-6 text-[16px] leading-normal">
+							<strong class="mb-1 block font-display text-lg">{item.title}</strong>
+							<span class="text-body">{item.text}</span>
+						</li>
+					))
+				}
+			</ul>
+		</section>
+
+		<section aria-labelledby="build-title" class="border-2 border-ink bg-ink p-8 text-[#e6e8eb] shadow-blue-sm">
+			<h2 id="build-title" class="m-0 mb-3 font-display text-3xl font-bold text-white">What happens to the winner</h2>
+			<p class="m-0 max-w-3xl text-lg leading-normal">
+				Before anything is built, the winning idea gets one more, stricter AI check. If it doesn’t pass, nothing is
+				built that cycle and the changelog says why. If it passes, it gets built by AI, checked for safety, deployed,
+				and published as a public commit credited to its author. If the build breaks, the site rolls back to the last
+				working version.
+			</p>
+			<p class="m-0 mt-4 font-mono text-[13px] text-silver">
+				Builds marked “Dry run” were built and tested but not put on the site. Builds marked Demo are sample data.
+			</p>
+		</section>
+	</main>
+</Shell>

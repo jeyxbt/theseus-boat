@@ -1,0 +1,41 @@
+---
+import { displayName } from '../auth/session';
+import { SKIP_LABELS } from '../cycle/history';
+import type { ClosedWindow } from '../cycle/windows';
+import type { Provider } from '../db/schema';
+import { pad3 } from '../format';
+import { minVotes } from '../settings';
+
+interface Props {
+	window: ClosedWindow;
+}
+
+const { window } = Astro.props;
+const author =
+	window.winnerHandle && window.winnerProvider
+		? displayName({ provider: window.winnerProvider as Provider, handle: window.winnerHandle })
+		: null;
+const skippedWinner = Boolean(window.winnerText && window.skipReason);
+---
+
+<p
+	class:list={[
+		'm-0 flex flex-wrap items-baseline gap-x-2 gap-y-1 border-2 border-ink px-4 py-3 text-[15px]',
+		window.winnerText && !skippedWinner ? 'bg-sun' : 'bg-card',
+	]}
+>
+	<span class="font-mono text-[12px] tracking-[0.08em] uppercase">Cycle {pad3(window.number)}</span>
+	{
+		window.winnerText ? (
+			<span>
+				won by <strong>“{window.winnerText}”</strong>
+				{author && <> · {author}</>} · {window.winnerVotes} votes.{' '}
+				{skippedWinner ? `Not built: ${SKIP_LABELS[window.skipReason!]}.` : 'Queued for the AI to build.'}
+			</span>
+		) : window.skipReason === 'no_ideas' ? (
+			<span>closed with no ideas. Nothing to build this time.</span>
+		) : (
+			<span>closed without a winner: no idea reached {minVotes()} votes.</span>
+		)
+	}
+</p>

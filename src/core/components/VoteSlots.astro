@@ -1,0 +1,37 @@
+---
+import { MAX_VOTES } from '../votes/queries';
+
+interface Props {
+	/** Board rank of each idea voted for, in the order the votes were cast. */
+	ranks: (number | null)[];
+}
+
+const { ranks } = Astro.props;
+const slots = Array.from({ length: MAX_VOTES }, (_, index) => ranks[index] ?? null);
+---
+
+<section aria-labelledby="votes-title" class="flex flex-col gap-4 border-2 border-ink bg-card p-6">
+	<div class="flex items-baseline justify-between">
+		<h2 id="votes-title" class="m-0 font-display text-2xl font-bold tracking-[-0.01em]">Your votes</h2>
+		<span class="font-mono text-sm"><span data-votes-used>{ranks.length}</span> / {MAX_VOTES}</span>
+	</div>
+	<div class="grid grid-cols-3 gap-2" data-vote-slots>
+		{
+			slots.map((rank) => (
+				<div
+					data-slot
+					class:list={[
+						'flex h-11 items-center justify-center border-2 border-ink font-mono text-[13px]',
+						rank !== null ? 'bg-accent' : 'bg-card',
+					]}
+				>
+					{rank !== null ? `#${String(rank).padStart(2, '0')}` : 'free'}
+				</div>
+			))
+		}
+	</div>
+	<p class="m-0 text-sm leading-normal text-muted">
+		Free, every window. Change your mind any time before the timer ends: take a vote back and give it to another idea.
+	</p>
+	<p data-vote-message role="status" aria-live="polite" class="m-0 text-sm font-medium empty:hidden"></p>
+</section>

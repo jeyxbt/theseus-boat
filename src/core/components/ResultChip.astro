@@ -1,0 +1,28 @@
+---
+import { resultLabel } from '../builds/queries';
+import type { CycleStatus } from '../cycle/history';
+
+interface Props {
+	build: { status: CycleStatus; note: string | null; dryRun?: boolean };
+}
+
+const { build } = Astro.props;
+const COLOURS: Record<CycleStatus, string> = {
+	building: 'bg-accent',
+	repairing: 'bg-accent',
+	live: 'bg-ok',
+	rolled_back: 'bg-accent-soft',
+	failed: 'bg-accent-soft',
+	queued: 'bg-sun',
+	skipped: 'bg-fog',
+};
+---
+
+<span
+	class:list={[
+		'inline-block px-2.5 py-0.5 text-[14px] font-semibold whitespace-nowrap text-ink',
+		build.dryRun && build.status === 'live' ? 'bg-fog' : (COLOURS[build.status] ?? 'bg-fog'),
+	]}
+>
+	{resultLabel(build)}
+</span>

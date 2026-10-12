@@ -1,0 +1,164 @@
+---
+import { devLoginEnabled, getSessionUser } from '../core/auth/session';
+import Flash from '../core/components/Flash.astro';
+import IdeaRow from '../core/components/IdeaRow.astro';
+import LastResult from '../core/components/LastResult.astro';
+import VotingCloses from '../core/components/VotingCloses.astro';
+import { currentWindow, lastClosedWindow } from '../core/cycle/windows';
+import { pad3 } from '../core/format';
+import ProposeForm from '../core/components/ProposeForm.astro';
+import Shell from '../core/components/Shell.astro';
+import SignInPanel from '../core/components/SignInPanel.astro';
+import VoteButton, { type VoteState } from '../core/components/VoteButton.astro';
+import VoteSlots from '../core/components/VoteSlots.astro';
+import { intIn } from '../core/http/api';
+import { IDEA_ERRORS, IDEA_OK } from '../core/ideas/messages';
+import { getMyOpenIdea, listOpenIdeas, myRemovedIdea } from '../core/ideas/queries';
+import { MAX_VOTES, myVotes } from '../core/votes/queries';
+
+const sort = Astro.url.searchParams.get('sort') === 'new' ? 'new' : 'top';
+const user = await getSessionUser(Astro);
+const window = currentWindow();
+const lastWindow = lastClosedWindow();
+const ideas = listOpenIdeas(sort);
+const myIdea = user ? getMyOpenIdea(user.id) : null;
+// An idea that went up unverified and was taken down by the background review: say why.
+const removed = user && !myIdea ? myRemovedIdea(user.id, window.id) : null;
+const removedMessage = removed
+	? `Your idea “${removed.body}” was taken down after a closer check. ${IDEA_ERRORS[removed.reason as keyof typeof IDEA_ERRORS] ?? ''} You can propose another one.`
+	: null;
+const maxVotes = Math.max(0, ...ideas.map((idea) => idea.votes));
+
+const mine = user ? myVotes(user.id) : [];
+const rankOf = new Map(ideas.map((idea, index) => [idea.id, index + 1]));
+const slotRanks = mine.map((id) => rankOf.get(id) ?? null);
+const returnTo = Astro.url.pathname + Astro.url.search;
+
+function stateFor(ideaId: number, authorId: number): VoteState {
+	if (user?.id === authorId) return 'own';
+	if (mine.includes(ideaId)) return 'voted';
+	return mine.length >= MAX_VOTES ? 'locked' : 'vote';
+}
+
+const draft = (await Astro.session?.get('draft')) ?? null;
+if (draft !== null) Astro.session?.delete('draft');
+
+const okCode = Astro.url.searchParams.get('ok') ?? '';
+const errorCode = Astro.url.searchParams.get('error') ?? '';
+const okMessage = IDEA_OK[okCode] ?? null;
+const errorMessage = errorCode ? (IDEA_ERRORS[errorCode as keyof typeof IDEA_ERRORS] ?? IDEA_ERRORS.not_found) : null;
+const similarId = intIn(Astro.url.searchParams.get('similar'), 1, 2 ** 31);
+const builtCycle = intIn(Astro.url.searchParams.get('built'), 1, 100000);
+
+const sortLinks = [
+	{ key: 'top', label: 'Most votes', href: '/ideas' },
+	{ key: 'new', label: 'Newest', href: '/ideas?sort=new' },
+];
+---
+
+<Shell title="Ideas" description="Pick what gets built next. Propose an idea and vote for the ones you want.">
+	<main class="wrap pt-14 pb-24">
+		<div class="mb-10 flex flex-wrap items-end justify-between gap-6">
+			<div class="flex flex-col gap-3">
+				<span class="eyebrow">
+					Cycle {pad3(window.number)} · {ideas.length} {ideas.length === 1 ? 'idea' : 'ideas'} on the table
+				</span>
+				<h1 class="h-display m-0" style="font-size: clamp(44px, 6.4vw, 88px)">Pick what gets built next.</h1>
+				{lastWindow && <LastResult window={lastWindow} />}
+			</div>
+			<nav aria-label="Sort ideas" class="flex border-2 border-ink bg-card">
+				{
+					sortLinks.map((link, index) => (
+						<a
+							href={link.href}
+							aria-current={sort === link.key ? 'true' : undefined}
+							class:list={[
+								'flex min-h-11 items-center px-5 font-semibold no-underline',
+								index > 0 && 'border-l-2 border-ink',
+								sort === link.key ? 'bg-ink text-white hover:text-white' : 'bg-card text-ink',
+							]}
+						>
+							{link.label}
+						</a>
+					))
+				}
+			</nav>
+		</div>
+
+		<div
+			class="flex flex-wrap items-start gap-10"
+			data-votes-root
+			data-essential="votes"
+			data-signed-in={user ? '1' : '0'}
+			data-max={MAX_VOTES}
+			data-mine={JSON.stringify(mine)}
+			data-window-id={window.id}
+		>
+			<div class="min-w-0 flex-[999_1_600px]">
+				{
+					ideas.length === 0 ? (
+						<div class="flex flex-col items-start gap-4 border-2 border-dashed border-ink p-8">
+							<h2 class="m-0 font-display text-3xl font-bold">No ideas yet.</h2>
+							<p class="m-0 text-body">The board is empty. Whatever you write first could be the next thing built.</p>
+							<a href="#propose" class="btn bg-accent text-ink hover:text-ink">
+								Propose the first idea
+							</a>
+						</div>
+					) : (
+						<ol class="m-0 flex list-none flex-col gap-3.5 p-0">
+							{ideas.map((idea, index) => (
+								<IdeaRow
+									idea={idea}
+									rank={index + 1}
+									maxVotes={maxVotes}
+									leading={sort === 'top' && index === 0 && idea.votes > 0}
+									mine={user?.id === idea.authorId}
+									voted={mine.includes(idea.id)}
+								>
+									<VoteButton
+										slot="action"
+										ideaId={idea.id}
+										state={stateFor(idea.id, idea.authorId)}
+										signedIn={Boolean(user)}
+										returnTo={returnTo}
+									/>
+								</IdeaRow>
+							))}
+						</ol>
+					)
+				}
+			</div>
+
+			<aside class="flex min-w-0 flex-[1_1_340px] flex-col gap-6">
+				<VotingCloses window={window} />
+				{user && <VoteSlots ranks={slotRanks} />}
+				<div id="propose" data-essential="propose" class="flex scroll-mt-6 flex-col gap-4">
+					{removedMessage && !okMessage && <Flash kind="error" message={removedMessage} />}
+					{okMessage && <Flash kind="ok" message={okMessage} />}
+					{errorMessage && <Flash kind="error" message={errorMessage} similarId={similarId} builtCycle={builtCycle} />}
+					<ProposeForm user={user} myIdea={myIdea} draft={draft} />
+				</div>
+				{!user && <SignInPanel returnTo="/ideas" />}
+				{
+					devLoginEnabled() && (
+						<form method="post" action="/api/dev/close-window" class="m-0 flex flex-col gap-2 border-2 border-dashed border-muted p-4">
+							<p class="m-0 font-mono text-[12px] tracking-[0.08em] text-muted uppercase">Dev only</p>
+							<input type="hidden" name="windowId" value={window.id} />
+							<button type="submit" class="btn bg-card text-ink">
+								Close this window now
+							</button>
+							<p class="m-0 text-[13px] text-muted">Runs the real close: picks the winner and opens the next window.</p>
+						</form>
+					)
+				}
+			</aside>
+		</div>
+	</main>
+</Shell>
+
+<script>
+	import { startVoting } from '../core/votes/client';
+
+	const root = document.querySelector<HTMLElement>('[data-votes-root]');
+	if (root) startVoting(root);
+</script>

@@ -1,0 +1,54 @@
+---
+import BuildsTable from '../core/components/BuildsTable.astro';
+import DemoBadge from '../core/components/DemoBadge.astro';
+import Shell from '../core/components/Shell.astro';
+import { listCycles } from '../core/cycle/history';
+
+const cycles = listCycles(500);
+const count = (status: string) => cycles.filter((entry) => entry.status === status && !entry.dryRun).length;
+const dryRuns = cycles.filter((entry) => entry.dryRun).length;
+const summary = [
+	`${count('live')} shipped`,
+	dryRuns > 0 && `${dryRuns} dry ${dryRuns === 1 ? 'run' : 'runs'}`,
+	`${count('rolled_back')} rolled back`,
+	count('queued') > 0 && `${count('queued')} queued`,
+	count('skipped') > 0 && `${count('skipped')} skipped`,
+]
+	.filter(Boolean)
+	.join(' · ');
+const anyDemo = cycles.some((entry) => entry.isDemo);
+---
+
+<Shell title="Changelog" description="Every voting cycle: what won, and what happened when it was built.">
+	<main class="wrap flex flex-col gap-10 pt-14 pb-24">
+		<div class="flex flex-wrap items-end justify-between gap-6">
+			<div class="flex flex-col gap-3">
+				<span class="eyebrow flex flex-wrap items-center gap-3">
+					{summary}
+					{anyDemo && <DemoBadge />}
+				</span>
+				<h1 class="h-display m-0" style="font-size: clamp(44px, 6.4vw, 88px)">Everything built so far.</h1>
+			</div>
+			<a href="/ideas" class="btn btn-lg bg-accent text-ink hover:text-ink">Pick the next one</a>
+		</div>
+
+		{
+			cycles.length === 0 ? (
+				<div class="flex flex-col items-start gap-4 border-2 border-dashed border-ink p-8">
+					<h2 class="m-0 font-display text-3xl font-bold">Nothing built yet.</h2>
+					<p class="m-0 text-body">
+						Every voting cycle lands here: the winning idea, its votes and what happened when it was built — including
+						the ones that rolled back or had no winner.
+					</p>
+				</div>
+			) : (
+				<BuildsTable builds={cycles} detailed />
+			)
+		}
+
+		<p class="m-0 max-w-2xl text-[15px] text-muted">
+			Rolled-back builds and cycles without a winner stay on the list on purpose: you can see what was tried, and why
+			it stopped.
+		</p>
+	</main>
+</Shell>

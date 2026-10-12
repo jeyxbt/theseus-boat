@@ -1,0 +1,53 @@
+---
+import '../styles/global.css';
+import { SITE_NAME } from '../site';
+import Footer from './Footer.astro';
+import Header from './Header.astro';
+
+interface Props {
+	title?: string;
+	description?: string;
+	dark?: boolean;
+}
+
+const {
+	title,
+	description = 'A website built by whoever shows up. Propose ideas, vote, watch them ship.',
+	dark = false,
+} = Astro.props;
+
+const fullTitle = title ? `${title} · ${SITE_NAME}` : SITE_NAME;
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>{fullTitle}</title>
+		<meta name="description" content={description} />
+		<meta name="color-scheme" content={dark ? 'dark' : 'light'} />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+	</head>
+	<body class:list={[dark && 'bg-ink']}>
+		<div
+			data-site-shell
+			class:list={[
+				'min-h-screen',
+				dark ? 'theme-dark pw-grid-dark bg-ink text-[#e6e8eb]' : 'pw-grid bg-paper text-ink',
+			]}
+		>
+			<a
+				href="#content"
+				class="sr-only z-50 bg-sun px-4 py-3 font-semibold text-ink focus:not-sr-only focus:absolute focus:top-2 focus:left-2"
+			>
+				Skip to content
+			</a>
+			<Header dark={dark} />
+			<div id="content" tabindex="-1" class="outline-none">
+				<slot />
+			</div>
+			<Footer />
+		</div>
+	</body>
+</html>

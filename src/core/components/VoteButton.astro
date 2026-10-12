@@ -1,0 +1,50 @@
+---
+export type VoteState = 'vote' | 'voted' | 'locked' | 'own' | 'closed';
+
+interface Props {
+	ideaId: number;
+	state: VoteState;
+	signedIn: boolean;
+	returnTo?: string;
+}
+
+const { ideaId, state, signedIn, returnTo = '/ideas' } = Astro.props;
+---
+
+{
+	signedIn ? (
+		<button
+			type="button"
+			class="btn vote-btn"
+			data-vote={ideaId}
+			data-state={state}
+			aria-pressed={state === 'voted' ? 'true' : 'false'}
+			disabled={state === 'locked' || state === 'own'}
+		>
+			<span data-label="vote">
+				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+					<path d="M12 19V5M5 12l7-7 7 7" />
+				</svg>
+				Vote
+			</span>
+			<span data-label="voted">
+				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+					<path d="M5 12l5 5L20 7" />
+				</svg>
+				Voted
+			</span>
+			<span data-label="locked">No votes left</span>
+			<span data-label="own">Your idea</span>
+			<span data-label="closed">Voting closed</span>
+		</button>
+	) : (
+		<a href={`/signin?returnTo=${encodeURIComponent(returnTo)}`} class="btn vote-btn" data-state="vote">
+			<span data-label="vote">
+				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+					<path d="M12 19V5M5 12l7-7 7 7" />
+				</svg>
+				Vote
+			</span>
+		</a>
+	)
+}

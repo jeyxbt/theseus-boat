@@ -1,0 +1,55 @@
+---
+import { dryRunLabel, isStale, latestBuild } from '../builds/queries';
+import type { BuildStatus } from '../db/schema';
+import { pad3 } from '../format';
+
+interface Props {
+	dark?: boolean;
+}
+
+const { dark = false } = Astro.props;
+const build = latestBuild();
+const stale = build ? isStale(build) : false;
+const cycle = build ? pad3(build.cycle) : '';
+
+const TEXT: Record<BuildStatus, string> = {
+	building: `AI is building cycle ${cycle}`,
+	repairing: `AI is fixing cycle ${cycle}`,
+	live: `Cycle ${cycle} is live`,
+	rolled_back: `Cycle ${cycle} rolled back`,
+	failed: `Cycle ${cycle} failed`,
+};
+const DOT: Record<BuildStatus, string> = {
+	building: 'bg-accent pw-pulse',
+	repairing: 'bg-accent pw-pulse',
+	live: 'bg-[#1e7a3c]',
+	rolled_back: 'bg-accent-soft',
+	failed: 'bg-accent-soft',
+};
+
+const dryRun = Boolean(build?.dryRun && build.status === 'live');
+const text = build
+	? stale
+		? `Cycle ${cycle} stalled`
+		: dryRun
+			? `Cycle ${cycle}: ${dryRunLabel(build.note).toLowerCase()}`
+			: (TEXT[build.status] ?? `Cycle ${cycle}`)
+	: null;
+const dot = build ? (stale ? 'bg-accent-soft' : dryRun ? 'bg-fog' : (DOT[build.status] ?? 'bg-fog')) : '';
+---
+
+{
+	build && (
+		<a
+			href="/build"
+			data-essential="status-pill"
+			class:list={[
+				'flex items-center gap-2 border-2 px-3 py-1.5 font-mono text-[12px] no-underline',
+				dark ? 'border-white bg-transparent text-white hover:text-white' : 'border-ink bg-card text-ink hover:text-ink',
+			]}
+		>
+			<span class:list={['size-2 rounded-full', dot]} aria-hidden="true" />
+			<span>{text}</span>
+		</a>
+	)
+}

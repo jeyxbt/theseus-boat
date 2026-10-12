@@ -1,0 +1,49 @@
+---
+import type { Window } from '../db/schema';
+import { hourMinute } from '../format';
+
+interface Props {
+	window: Window;
+}
+
+const { window } = Astro.props;
+const seconds = Math.ceil(Math.max(0, Date.parse(window.closesAt) - Date.now()) / 1000);
+const pad = (n: number) => String(n).padStart(2, '0');
+const clock = `${pad(Math.floor(seconds / 3600))}:${pad(Math.floor((seconds % 3600) / 60))}:${pad(seconds % 60)}`;
+---
+
+<section
+	aria-label="Time left"
+	data-countdown
+	data-closes-at={window.closesAt}
+	data-opened-at={window.openedAt}
+	data-server-now={Date.now()}
+	class="group border-2 border-ink bg-ink p-6 text-white shadow-blue-sm"
+>
+	<div class="mb-2.5 font-mono text-[12px] tracking-[0.08em] text-silver uppercase">
+		<span class="group-data-[ended=true]:hidden">Voting closes in</span>
+		<span class="hidden group-data-[ended=true]:inline">Voting closed</span>
+	</div>
+	<div
+		data-countdown-clock
+		role="timer"
+		class="font-display text-[56px] leading-none font-bold tracking-[-0.03em] tabular-nums"
+	>
+		{clock}
+	</div>
+	<div class="mt-4 h-2 border border-[#3a3f46] bg-[#2b2f35]">
+		<div data-countdown-bar class="pw-stripes h-full" style="width: 0%"></div>
+	</div>
+	<p class="m-0 mt-3 font-mono text-[12px] text-silver">
+		closes at <span data-local-time={window.closesAt}>{hourMinute(window.closesAt)}</span>
+	</p>
+	<p data-window-ended hidden class="m-0 mt-3 text-sm text-sun">
+		This window closed. <a href="/ideas" class="font-semibold text-sun underline hover:text-white">Reload</a> to see
+		the winner — your draft is still in the form.
+	</p>
+</section>
+
+<script>
+	import { startCountdowns } from '../cycle/countdown';
+	startCountdowns();
+</script>

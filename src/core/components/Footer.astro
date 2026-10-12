@@ -1,0 +1,35 @@
+---
+import { SITE_NAME } from '../site';
+
+const year = new Date().getFullYear();
+---
+
+<footer class="overflow-hidden border-t-2 border-ink bg-ink text-white">
+	<div class="wrap flex flex-col gap-10 pt-16 pb-8">
+		<div class="flex flex-wrap items-end justify-between gap-6">
+			<p
+				class="m-0 max-w-[640px] font-display font-bold leading-[1.1] tracking-[-0.02em]"
+				style="font-size: clamp(28px, 3.4vw, 44px)"
+			>
+				What should this page become next?
+			</p>
+			<a href="/ideas" class="btn btn-lg border-accent bg-accent text-ink" data-essential="footer-propose">Propose an idea</a>
+		</div>
+		<div
+			class="font-display font-extrabold whitespace-nowrap text-white"
+			style="font-size: clamp(36px, 11.5vw, 150px); line-height: 0.8; letter-spacing: -0.06em"
+			aria-hidden="true"
+		>
+			{SITE_NAME.toUpperCase()}<span class="text-accent">.</span>
+		</div>
+		<div
+			class="flex flex-wrap justify-between gap-3 border-t border-night-line pt-5 font-mono text-[13px] text-silver"
+		>
+			<span>Built by whoever shows up. &copy; {year}</span>
+			<span class="flex gap-5">
+				<a href="/rules" class="text-silver hover:text-white" data-essential="footer-rules">Rules</a>
+				<a href="/privacy" class="text-silver hover:text-white" data-essential="footer-privacy">Privacy</a>
+			</span>
+		</div>
+	</div>
+</footer>

@@ -1,0 +1,40 @@
+---
+import { enabledProviders } from '../auth/providers';
+import { devLoginEnabled } from '../auth/session';
+import Icon from './Icon.astro';
+
+interface Props {
+	returnTo: string;
+	title?: string;
+}
+
+const { returnTo, title = 'Sign in to vote' } = Astro.props;
+const providers = enabledProviders();
+const ICONS: Record<string, string> = { x: 'brand-x', google: 'brand-google', github: 'brand-github' };
+const encoded = encodeURIComponent(returnTo);
+---
+
+<section aria-label="Sign in" class="flex flex-col gap-3 border-2 border-dashed border-ink p-6">
+	<h2 class="m-0 mb-1 font-display text-xl font-bold">{title}</h2>
+	{
+		providers.map((provider) => (
+			<a
+				href={`/api/auth/${provider.id}?returnTo=${encoded}`}
+				class="btn min-h-12 bg-card text-ink hover:text-ink"
+			>
+				<Icon name={ICONS[provider.id]} class="size-[18px]" />
+				Continue with {provider.label}
+			</a>
+		))
+	}
+	{
+		devLoginEnabled() && (
+			<a href={`/signin?returnTo=${encoded}`} class="btn min-h-11 bg-sun text-ink hover:text-ink">
+				Dev login
+			</a>
+		)
+	}
+	<p class="m-0 text-[13px] leading-normal text-muted">
+		We only keep your username. No email, no posting on your behalf.
+	</p>
+</section>

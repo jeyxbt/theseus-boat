@@ -1,0 +1,206 @@
+---
+// This page is the AI's to change. It reads data only through core/public/data.
+import BuildLog from '../core/components/BuildLog.astro';
+import BuiltCard from '../core/components/BuiltCard.astro';
+import DemoBadge from '../core/components/DemoBadge.astro';
+import Icon from '../core/components/Icon.astro';
+import Marquee from '../core/components/Marquee.astro';
+import Shell from '../core/components/Shell.astro';
+import WindowCard from '../core/components/WindowCard.astro';
+import { pad2, pad3 } from '../core/format';
+import {
+	HOUSE_RULES,
+	HOW_IT_WORKS,
+	boardStats,
+	buildLog,
+	displayName,
+	ideas,
+	latestBuild,
+	openWindow,
+	shippedBuilds,
+} from '../core/public/data';
+
+const window = openWindow();
+const stats = boardStats();
+const leaders = ideas('top').slice(0, 3);
+const topVotes = Math.max(0, ...leaders.map((idea) => idea.votes));
+const shipped = shippedBuilds(12);
+const latest = latestBuild();
+const latestEvents = latest ? buildLog(latest.id) : [];
+---
+
+<Shell>
+	<main>
+	<section id="top" class="wrap flex flex-wrap items-stretch gap-12 pt-[72px] pb-14">
+		<div class="flex min-w-0 flex-[999_1_560px] flex-col gap-7">
+			<p class="eyebrow m-0">{window ? `Cycle ${pad3(window.number)} · open for ideas` : 'Open for ideas'}</p>
+			<h1 class="h-display m-0" style="font-size: clamp(52px, 8.4vw, 124px); line-height: 0.92">
+				This website is built by
+				<span class="hl">whoever shows up</span><span class="pw-caret text-blue">_</span>
+			</h1>
+			<p class="m-0 max-w-[560px] text-xl leading-normal text-body">
+				Write what this site should become. Everyone votes. When the timer hits zero, the most-voted idea gets built
+				by AI — live, in public, every line open to read.
+			</p>
+			<div class="flex flex-wrap gap-3.5">
+				<a href="/ideas#propose" class="btn btn-lg bg-accent text-ink hover:text-ink">
+					Propose an idea
+					<Icon name="arrow-right" class="size-[18px]" />
+				</a>
+				<a href="#leading" class="btn btn-lg bg-card text-ink hover:text-ink">See what’s winning</a>
+			</div>
+		</div>
+		{window && <WindowCard window={window} stats={stats} />}
+	</section>
+
+	<Marquee items={shipped.map((build) => build.ideaText)} />
+
+	<section id="leading" class="wrap scroll-mt-6 pt-[88px] pb-10">
+		<div class="mb-8 flex flex-wrap items-end justify-between gap-4">
+			<h2 class="h-section m-0">Winning right now</h2>
+			<a href="/ideas" class="py-3 font-semibold">All ideas →</a>
+		</div>
+		{
+			leaders.length === 0 ? (
+				<div class="flex flex-col items-start gap-4 border-2 border-dashed border-ink p-8">
+					<p class="m-0 font-display text-2xl font-bold">No ideas on the board yet.</p>
+					<a href="/ideas#propose" class="btn bg-accent text-ink hover:text-ink">
+						Be the first
+					</a>
+				</div>
+			) : (
+				<ol class="m-0 flex list-none flex-col gap-3.5 p-0">
+					{leaders.map((idea, index) => (
+						<li
+							class:list={[
+								'flex flex-wrap items-center gap-x-6 gap-y-4 border-2 border-ink bg-card px-6 py-[22px]',
+								index === 0 && idea.votes > 0 && 'shadow-accent',
+							]}
+						>
+							<span class:list={['w-14 font-display text-[44px] leading-none font-extrabold', index > 0 && 'text-muted']}>
+								{pad2(index + 1)}
+							</span>
+							<div class="flex min-w-0 flex-[999_1_320px] flex-col gap-2.5">
+								<p class="m-0 text-xl leading-[1.3] font-semibold break-words">{idea.body}</p>
+								<p class="m-0 font-mono text-[13px] text-muted">
+									{displayName({ provider: idea.authorProvider, handle: idea.authorHandle })}
+								</p>
+								<div class="h-2 bg-fog" aria-hidden="true">
+									<div
+										class:list={['h-full', index === 0 ? 'bg-ink' : 'bg-muted']}
+										style={`width: ${topVotes > 0 ? Math.round((idea.votes / topVotes) * 100) : 0}%`}
+									/>
+								</div>
+							</div>
+							<div class="flex flex-[1_0_auto] items-center justify-end gap-4">
+								<span class="font-mono text-[15px]">
+									{idea.votes} {idea.votes === 1 ? 'vote' : 'votes'}
+								</span>
+								<a
+									href={`/ideas#idea-${idea.id}`}
+									class:list={['btn', index === 0 ? 'bg-accent text-ink hover:text-ink' : 'bg-card text-ink hover:text-ink']}
+								>
+									Vote
+								</a>
+							</div>
+						</li>
+					))}
+				</ol>
+			)
+		}
+	</section>
+
+	<section class="wrap py-[72px]">
+		<h2 class="h-section m-0 mb-9">How a change happens</h2>
+		<ol class="m-0 grid list-none grid-cols-[repeat(auto-fit,minmax(240px,1fr))] border-2 border-ink bg-card p-0">
+			{
+				HOW_IT_WORKS.map((step, index) => (
+					<li
+						class:list={[
+							'flex min-h-[260px] flex-col gap-4 border-b-2 border-ink p-7 sm:border-r-2',
+							index === 2 && 'bg-accent',
+						]}
+					>
+						<span class:list={['font-mono text-sm', index === 2 ? 'text-ink' : 'text-muted']}>{pad2(index + 1)}</span>
+						<Icon name={step.icon} class="size-10" />
+						<h3 class="m-0 font-display text-[28px] font-bold tracking-[-0.02em]">{step.title}</h3>
+						<p class:list={['m-0 text-base leading-normal', index === 2 ? 'text-ink' : 'text-body']}>{step.text}</p>
+					</li>
+				))
+			}
+		</ol>
+	</section>
+
+	{
+		latest && (
+			<section class="wrap pt-10 pb-[72px]">
+				<div class="border-2 border-ink bg-ink text-[#e6e8eb] shadow-accent-lg">
+					<div class="flex flex-wrap items-center justify-between gap-3 border-b border-night-line px-6 py-4">
+						<div class="flex flex-wrap items-center gap-3">
+							<span
+								class:list={[
+									'size-2.5 rounded-full',
+									latest.status === 'building' ? 'pw-pulse bg-accent' : 'bg-ok',
+								]}
+							/>
+							<span class="font-display text-[22px] font-bold text-white">
+								{latest.status === 'building' ? 'Happening right now' : 'Latest build'}
+							</span>
+							{latest.isDemo && <DemoBadge dark />}
+						</div>
+						<a href="/build" class="py-2.5 font-semibold text-accent-soft hover:text-white">
+							Watch the full build →
+						</a>
+					</div>
+					<BuildLog events={latestEvents} live={latest.status === 'building'} tail={6} animate={false} />
+				</div>
+			</section>
+		)
+	}
+
+	{
+		shipped.length > 0 && (
+			<section id="built" class="wrap pt-10 pb-[88px]">
+				<div class="mb-8 flex flex-wrap items-end justify-between gap-4">
+					<h2 class="h-section m-0 flex flex-wrap items-center gap-4">
+						Built by you
+						{shipped.some((build) => build.isDemo) && <DemoBadge />}
+					</h2>
+					<a href="/changelog" class="py-3 font-semibold">
+						Full changelog →
+					</a>
+				</div>
+				<div class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
+					{shipped.slice(0, 3).map((build, index) => (
+						<BuiltCard build={build} index={index} />
+					))}
+				</div>
+			</section>
+		)
+	}
+
+	<section class="border-t-2 border-ink bg-card">
+		<div class="wrap flex flex-wrap gap-12 py-20">
+			<div class="min-w-0 flex-[1_1_360px]">
+				<h2 class="h-section m-0 mb-4">House rules</h2>
+				<p class="m-0 max-w-[440px] text-lg leading-normal text-body">
+					Anyone can shape this place. A few things keep it worth visiting.
+				</p>
+				<a href="/rules" class="mt-6 inline-block font-semibold">All the rules →</a>
+			</div>
+			<ul
+				class="m-0 grid min-w-0 flex-[999_1_520px] list-none grid-cols-[repeat(auto-fit,minmax(240px,1fr))] border-t-2 border-ink p-0"
+			>
+				{
+					HOUSE_RULES.map((rule) => (
+						<li class="border-b border-line py-5 pr-6 text-[17px] leading-[1.45]">
+							<strong class="mb-1 block font-display text-xl">{rule.title}</strong>
+							{rule.text}
+						</li>
+					))
+				}
+			</ul>
+		</div>
+	</section>
+	</main>
+</Shell>

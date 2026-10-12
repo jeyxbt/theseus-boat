@@ -1,0 +1,30 @@
+# build output
+dist/
+
+# generated types
+.astro/
+
+# dependencies
+node_modules/
+
+# logs
+*-debug.log*
+
+# environment variables
+.env
+.env.production
+
+# local database
+data/
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# build pipeline state
+.iterate*
+.release-sha
+*.log
+
+.DS_Store
+.idea/

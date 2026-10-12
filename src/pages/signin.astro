@@ -1,0 +1,115 @@
+---
+import { safeReturnTo } from '../core/auth/oauth';
+import { enabledProviders } from '../core/auth/providers';
+import { devLoginEnabled, displayName, getSessionUser } from '../core/auth/session';
+import Icon from '../core/components/Icon.astro';
+import Shell from '../core/components/Shell.astro';
+
+const user = await getSessionUser(Astro);
+const returnTo = safeReturnTo(Astro.url.searchParams.get('returnTo'));
+const providers = enabledProviders();
+const devLogin = devLoginEnabled();
+
+const ERRORS: Record<string, string> = {
+	unavailable: 'That sign-in option isn’t set up yet.',
+	denied: 'Sign-in was cancelled. Nothing was saved.',
+	auth: 'Sign-in didn’t go through. Please try again.',
+	slow: 'Too many attempts. Wait a minute and try again.',
+	origin: 'That request didn’t come from this site.',
+	handle: 'Use 2–24 characters: letters, numbers, dots, dashes or underscores.',
+};
+const errorCode = Astro.url.searchParams.get('error') ?? '';
+const error = ERRORS[errorCode] ?? (errorCode ? ERRORS.auth : null);
+
+const ICONS: Record<string, string> = { x: 'brand-x', google: 'brand-google', github: 'brand-github' };
+---
+
+<Shell title="Sign in">
+	<main class="wrap flex flex-wrap items-start gap-10 py-14 sm:py-20">
+		<div class="flex min-w-0 flex-[999_1_420px] flex-col gap-6">
+			<p class="eyebrow m-0">Free · one person, one voice</p>
+			<h1 class="h-display m-0" style="font-size: clamp(44px, 6.4vw, 88px)">
+				Sign in to propose <span class="hl">and vote</span>.
+			</h1>
+			<p class="m-0 max-w-[520px] text-lg text-body">
+				Signing in is how we keep it fair: one idea and three votes per person. We only keep your username and
+				avatar. No email, no posting on your behalf.
+			</p>
+		</div>
+
+		<section aria-label="Sign-in options" class="flex min-w-0 flex-[1_1_340px] flex-col gap-5">
+			{
+				error && (
+					<p role="alert" class="m-0 border-2 border-ink bg-accent-soft p-4 font-medium">
+						{error}
+					</p>
+				)
+			}
+
+			{
+				user ? (
+					<div class="flex flex-col gap-4 border-2 border-ink bg-card p-6">
+						<h2 class="m-0 font-display text-2xl font-bold">You’re signed in</h2>
+						<p class="m-0 text-body">
+							as <strong>{displayName(user)}</strong>
+						</p>
+						<a href={returnTo === '/' ? '/ideas' : returnTo} class="btn bg-accent text-ink">
+							Continue
+						</a>
+					</div>
+				) : (
+					<div class="flex flex-col gap-3 border-2 border-ink bg-card p-6 shadow-blue-sm">
+						<h2 class="m-0 mb-1 font-display text-2xl font-bold">Continue with</h2>
+						{providers.length === 0 && (
+							<p class="m-0 text-body">No sign-in providers are configured. Add keys to .env (see README).</p>
+						)}
+						{providers.map((provider) => (
+							<a
+								href={`/api/auth/${provider.id}?returnTo=${encodeURIComponent(returnTo)}`}
+								class="btn min-h-12 bg-card text-[16px] text-ink hover:text-ink"
+							>
+								<Icon name={ICONS[provider.id]} class="size-[18px]" />
+								{provider.label}
+							</a>
+						))}
+						<p class="m-0 text-[13px] text-muted">
+							By signing in you agree to the <a href="/rules">house rules</a>. See what we store in{' '}
+							<a href="/privacy">privacy</a>.
+						</p>
+					</div>
+				)
+			}
+
+			{
+				!user && devLogin && (
+					<form method="post" action="/api/auth/dev" class="flex flex-col gap-3 border-2 border-dashed border-ink p-6">
+						<h2 class="m-0 font-display text-xl font-bold">Dev login</h2>
+						<p class="m-0 text-[14px] text-muted">
+							Only while running locally. Sign in as any test person, e.g. <code>alice</code> or <code>bob</code>.
+						</p>
+						<label for="dev-handle" class="sr-only">
+							Test handle
+						</label>
+						<div class="flex gap-2">
+							<input
+								id="dev-handle"
+								name="handle"
+								required
+								minlength="2"
+								maxlength="24"
+								pattern="@?[A-Za-z0-9_.\-]{2,24}"
+								autocomplete="off"
+								placeholder="alice"
+								class="min-h-11 min-w-0 flex-1 border-2 border-ink bg-field px-3 font-mono"
+							/>
+							<input type="hidden" name="returnTo" value={returnTo} />
+							<button type="submit" class="btn bg-sun text-ink">
+								Sign in
+							</button>
+						</div>
+					</form>
+				)
+			}
+		</section>
+	</main>
+</Shell>

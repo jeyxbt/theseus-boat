@@ -1,0 +1,17 @@
+---
+interface Props {
+	dark?: boolean;
+}
+
+const { dark = false } = Astro.props;
+---
+
+<span
+	title="Sample builds to preview the page. Real builds arrive when the AI is connected."
+	class:list={[
+		'inline-flex items-center border border-dashed px-2 py-0.5 font-mono text-[11px] tracking-[0.08em] uppercase',
+		dark ? 'border-silver text-silver' : 'border-muted text-muted',
+	]}
+>
+	Demo data
+</span>

@@ -1,0 +1,18 @@
+---
+import Shell from '../core/components/Shell.astro';
+
+Astro.response.status = 404;
+---
+
+<Shell title="Not found">
+	<main class="wrap py-24">
+		<p class="eyebrow mb-4">Error 404</p>
+		<h1 class="h-display m-0 mb-6" style="font-size: clamp(44px, 7vw, 96px)">
+			Nothing built <span class="hl">here yet</span><span class="pw-caret text-blue">_</span>
+		</h1>
+		<p class="m-0 mb-8 max-w-xl text-xl text-body">
+			This page doesn't exist. Maybe it's the next thing someone proposes.
+		</p>
+		<a href="/ideas" class="btn btn-lg bg-accent text-ink">See the ideas</a>
+	</main>
+</Shell>

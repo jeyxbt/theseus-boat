@@ -1,0 +1,299 @@
+@import "tailwindcss";
+@import "@fontsource-variable/bricolage-grotesque";
+@import "@fontsource-variable/jetbrains-mono";
+@import "@fontsource/instrument-sans/400.css";
+@import "@fontsource/instrument-sans/500.css";
+@import "@fontsource/instrument-sans/600.css";
+
+@theme {
+	--font-display: 'Bricolage Grotesque Variable', system-ui, sans-serif;
+	--font-sans: 'Instrument Sans', system-ui, sans-serif;
+	--font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+
+	--color-ink: #111111;
+	--color-paper: #eef0f2;
+	--color-card: #ffffff;
+	--color-field: #f7f8f9;
+	--color-accent: #ff5b1f;
+	--color-accent-soft: #ffb08f;
+	--color-blue: #1f3bff;
+	--color-sun: #ffd23f;
+	--color-ok: #8fe3a6;
+	--color-bad: #ff8a80;
+	--color-info: #7fb2ff;
+	--color-body: #2a2e33;
+	--color-muted: #4a5058;
+	--color-dim: #8a9099;
+	--color-silver: #b8bdc4;
+	--color-line: #c9cdd2;
+	--color-fog: #e3e6ea;
+	--color-night: #0a0a0a;
+	--color-night-line: #2e3238;
+
+	--shadow-hard: 6px 6px 0 var(--color-ink);
+	--shadow-accent: 6px 6px 0 var(--color-accent);
+	--shadow-blue: 10px 10px 0 var(--color-blue);
+	--shadow-blue-sm: 8px 8px 0 var(--color-blue);
+	--shadow-accent-lg: 10px 10px 0 var(--color-accent);
+}
+
+@utility wrap {
+	max-width: 1280px;
+	margin-inline: auto;
+	padding-inline: 16px;
+	@media (min-width: 40rem) {
+		padding-inline: 32px;
+	}
+}
+
+@utility eyebrow {
+	font-family: var(--font-mono);
+	font-size: 13px;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--color-muted);
+}
+
+@utility h-display {
+	font-family: var(--font-display);
+	font-weight: 800;
+	letter-spacing: -0.045em;
+	line-height: 0.95;
+}
+
+@utility h-section {
+	font-family: var(--font-display);
+	font-weight: 800;
+	letter-spacing: -0.035em;
+	line-height: 1;
+	font-size: clamp(36px, 5vw, 64px);
+}
+
+/* Element defaults live in the base layer so utility classes (text-white…) can override them. */
+@layer base {
+	html {
+		scroll-behavior: smooth;
+	}
+
+	body {
+		margin: 0;
+		background: var(--color-paper);
+		color: var(--color-ink);
+		font-family: var(--font-sans);
+		font-size: 17px;
+		line-height: 1.5;
+		-webkit-font-smoothing: antialiased;
+	}
+
+	a {
+		color: var(--color-ink);
+	}
+	a:hover {
+		color: var(--color-blue);
+	}
+
+	.theme-dark a {
+		color: var(--color-accent-soft);
+	}
+	.theme-dark a:hover {
+		color: #ffffff;
+	}
+
+	:focus-visible {
+		outline: 3px solid var(--color-blue);
+		outline-offset: 2px;
+	}
+}
+
+.pw-grid {
+	background-image:
+		linear-gradient(rgba(17, 17, 17, 0.06) 1px, transparent 1px),
+		linear-gradient(90deg, rgba(17, 17, 17, 0.06) 1px, transparent 1px);
+	background-size: 32px 32px;
+}
+
+.pw-grid-dark {
+	background-image:
+		linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+		linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+	background-size: 32px 32px;
+}
+
+/* Buttons: hard-edged, lift on hover. Colour comes from utility classes. */
+.btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 10px;
+	min-height: 44px;
+	padding: 0 18px;
+	border: 2px solid var(--color-ink);
+	font: inherit;
+	font-weight: 600;
+	text-decoration: none;
+	cursor: pointer;
+	transition:
+		transform 0.15s,
+		box-shadow 0.15s;
+}
+.btn:hover:not(:disabled) {
+	transform: translate(-2px, -2px);
+	box-shadow: 5px 5px 0 var(--color-ink);
+}
+.btn:disabled {
+	cursor: not-allowed;
+}
+.btn-lg {
+	min-height: 52px;
+	padding: 0 26px;
+	font-size: 17px;
+}
+
+/* Vote button: the server and the client only set data-state; looks live here. */
+.vote-btn {
+	min-width: 112px;
+	padding: 0 16px;
+	background: var(--color-card);
+	color: var(--color-ink);
+}
+.vote-btn:hover {
+	color: var(--color-ink);
+}
+.vote-btn[data-state='voted'] {
+	background: var(--color-accent);
+}
+.vote-btn[data-state='locked'],
+.vote-btn[data-state='own'],
+.vote-btn[data-state='closed'] {
+	border-style: dashed;
+	border-color: var(--color-dim);
+	background: transparent;
+	color: #5a6068;
+}
+.vote-btn [data-label] {
+	display: none;
+	align-items: center;
+	gap: 8px;
+}
+.vote-btn[data-state='vote'] [data-label='vote'],
+.vote-btn[data-state='voted'] [data-label='voted'],
+.vote-btn[data-state='locked'] [data-label='locked'],
+.vote-btn[data-state='own'] [data-label='own'],
+.vote-btn[data-state='closed'] [data-label='closed'] {
+	display: inline-flex;
+}
+.vote-btn[aria-busy='true'] {
+	opacity: 0.6;
+	cursor: progress;
+}
+
+/*
+ * Orange highlight in headlines. Display headings use a tight line-height, so a
+ * plain background would cover the descenders of the line above ("by" → "bu").
+ * The colour starts a little below the top of the line box instead.
+ */
+.hl {
+	background: linear-gradient(to bottom, transparent 0.17em, var(--color-accent) 0.17em);
+	padding: 0 0.12em;
+	-webkit-box-decoration-break: clone;
+	box-decoration-break: clone;
+}
+
+.chip-mono {
+	font-family: var(--font-mono);
+	font-size: 12px;
+}
+
+@keyframes pw-pulse {
+	0% {
+		box-shadow: 0 0 0 0 rgba(255, 91, 31, 0.7);
+	}
+	70% {
+		box-shadow: 0 0 0 10px rgba(255, 91, 31, 0);
+	}
+	100% {
+		box-shadow: 0 0 0 0 rgba(255, 91, 31, 0);
+	}
+}
+@keyframes pw-blink {
+	0%,
+	49% {
+		opacity: 1;
+	}
+	50%,
+	100% {
+		opacity: 0;
+	}
+}
+@keyframes pw-slide {
+	from {
+		transform: translateX(0);
+	}
+	to {
+		transform: translateX(-50%);
+	}
+}
+@keyframes pw-pop {
+	0% {
+		transform: scale(1);
+	}
+	40% {
+		transform: scale(1.12);
+	}
+	100% {
+		transform: scale(1);
+	}
+}
+@keyframes pw-in {
+	from {
+		opacity: 0;
+		transform: translateY(6px);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+@keyframes pw-stripes {
+	from {
+		background-position: 0 0;
+	}
+	to {
+		background-position: 28px 0;
+	}
+}
+
+.pw-pulse {
+	animation: pw-pulse 1.6s infinite;
+}
+.pw-caret {
+	animation: pw-blink 1s steps(1) infinite;
+}
+.pw-marquee {
+	animation: pw-slide 38s linear infinite;
+}
+.pw-pop {
+	animation: pw-pop 0.25s ease-out;
+}
+.pw-in {
+	animation: pw-in 0.35s ease-out both;
+}
+.pw-stripes {
+	background-image: repeating-linear-gradient(-45deg, #ff5b1f 0 10px, #ffb08f 10px 20px);
+	background-size: 28px 28px;
+	animation: pw-stripes 0.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.pw-pulse,
+	.pw-caret,
+	.pw-marquee,
+	.pw-pop,
+	.pw-in,
+	.pw-stripes {
+		animation: none;
+	}
+	html {
+		scroll-behavior: auto;
+	}
+}

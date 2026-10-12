@@ -1,0 +1,46 @@
+---
+import AccountMenu from './AccountMenu.astro';
+import Logo from './Logo.astro';
+import StatusPill from './StatusPill.astro';
+
+interface Props {
+	dark?: boolean;
+}
+
+const { dark = false } = Astro.props;
+const path = Astro.url.pathname.replace(/\/$/, '') || '/';
+
+const links = [
+	{ href: '/ideas', label: 'Ideas' },
+	{ href: '/build', label: 'Live build' },
+	{ href: '/changelog', label: 'Changelog' },
+	{ href: '/rules', label: 'Rules' },
+];
+---
+
+<header class:list={['border-b', dark ? 'border-night-line bg-ink' : 'border-b-2 border-ink bg-paper']}>
+	<div class="wrap flex flex-wrap items-center gap-x-7 gap-y-4 py-4">
+		<Logo dark={dark} />
+		<StatusPill dark={dark} />
+		<nav aria-label="Main" class="ml-auto flex flex-wrap gap-x-[22px] gap-y-1 text-[15px] font-medium">
+			{
+				links.map((link) => (
+					<a
+						href={link.href}
+						data-essential={`nav-${link.href.slice(1)}`}
+						aria-current={path === link.href ? 'page' : undefined}
+						class:list={[
+							'py-2.5 no-underline',
+							dark ? 'text-[#e6e8eb] hover:text-white' : 'text-ink',
+							path === link.href && 'border-b-[3px] border-accent',
+							path === link.href && dark && 'text-white',
+						]}
+					>
+						{link.label}
+					</a>
+				))
+			}
+		</nav>
+		<AccountMenu dark={dark} />
+	</div>
+</header>

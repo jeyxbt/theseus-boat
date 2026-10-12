@@ -1,0 +1,39 @@
+{
+	"name": "theseus",
+	"description": "A website its visitors rebuild one idea at a time: propose, vote, and an AI ships the winner.",
+	"type": "module",
+	"version": "0.1.0",
+	"private": true,
+	"license": "MIT",
+	"engines": {
+		"node": ">=24.0.0"
+	},
+	"scripts": {
+		"dev": "node --env-file-if-exists=.env node_modules/astro/bin/astro.mjs dev",
+		"build": "astro build",
+		"preview": "astro preview",
+		"start": "node --env-file-if-exists=.env dist/server/entry.mjs",
+		"astro": "astro",
+		"db:seed": "node --env-file-if-exists=.env --import tsx scripts/db-seed.ts",
+		"db:reset": "node --env-file-if-exists=.env --import tsx scripts/db-reset.ts",
+		"cycle:close": "node --env-file-if-exists=.env --import tsx scripts/cycle-close.ts",
+		"build:simulate": "node --env-file-if-exists=.env --import tsx scripts/build-simulate.ts",
+		"cycle:run": "node --env-file-if-exists=.env --import tsx scripts/cycle-run.ts",
+		"cycle:daemon": "node --env-file-if-exists=.env --import tsx scripts/cycle-daemon.ts",
+		"store:remove": "node --env-file-if-exists=.env --import tsx scripts/store-remove.ts",
+		"cycle:canary": "node --env-file-if-exists=.env --import tsx scripts/pipeline/canary.ts",
+		"test": "tsx --test tests/*.test.mjs"
+	},
+	"dependencies": {
+		"@anthropic-ai/sdk": "^0.132.1",
+		"@astrojs/node": "11.1.6",
+		"@fontsource-variable/bricolage-grotesque": "^5.3.0",
+		"@fontsource-variable/jetbrains-mono": "^5.3.0",
+		"@fontsource/instrument-sans": "^5.3.0",
+		"@iconify-json/tabler": "1.2.38",
+		"@tailwindcss/vite": "4.3.3",
+		"astro": "7.2.10",
+		"tailwindcss": "4.3.3",
+		"tsx": "^4.19.0"
+	}
+}

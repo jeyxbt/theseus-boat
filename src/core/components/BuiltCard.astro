@@ -1,0 +1,58 @@
+---
+import type { Build } from '../db/schema';
+import { pad3 } from '../format';
+
+interface Props {
+	build: Build;
+	/** Picks one of the three header artworks. */
+	index: number;
+}
+
+const { build, index } = Astro.props;
+const art = index % 3;
+const pixels = ['#FFD23F', '#FFFFFF', '#FF5B1F', '#FFFFFF', '#FFD23F', '#111111', '#FFFFFF', '#FF5B1F', '#111111', '#FF5B1F', '#FFFFFF', '#FFD23F', '#111111', '#FFFFFF', '#FF5B1F', '#FFD23F', '#FFFFFF', '#FFD23F', '#111111', '#FF5B1F', '#FFFFFF', '#FFD23F', '#111111', '#FFFFFF'];
+---
+
+<article class="flex flex-col border-2 border-ink bg-card">
+	<a href={`/build?cycle=${build.cycle}`} class="block no-underline" aria-label={`Cycle ${pad3(build.cycle)}: ${build.ideaText}`}>
+		{
+			art === 0 && (
+				<div class="relative flex h-[170px] items-center justify-center overflow-hidden border-b-2 border-ink bg-ink">
+					<div class="size-24 rounded-full bg-sun shadow-[inset_-26px_0_0_0_#111111]" />
+					<span class="absolute top-3 left-3 font-mono text-[12px] text-silver">cycle {pad3(build.cycle)}</span>
+				</div>
+			)
+		}
+		{
+			art === 1 && (
+				<div class="relative box-border grid h-[170px] grid-cols-8 gap-[3px] border-b-2 border-ink bg-blue px-[60px] py-7">
+					{pixels.map((colour) => (
+						<span style={`background: ${colour}`} />
+					))}
+					<span class="absolute top-3 left-3 font-mono text-[12px] text-white">cycle {pad3(build.cycle)}</span>
+				</div>
+			)
+		}
+		{
+			art === 2 && (
+				<div class="relative flex h-[170px] flex-col justify-center gap-2.5 border-b-2 border-ink bg-accent px-10">
+					<div class="h-3.5 w-[70%] bg-ink" />
+					<div class="h-3.5 w-[92%] border-2 border-ink bg-white" />
+					<div class="h-3.5 w-[54%] bg-ink" />
+					<div class="h-3.5 w-[80%] border-2 border-ink bg-white" />
+					<span class="absolute top-3 left-3 font-mono text-[12px] text-ink">cycle {pad3(build.cycle)}</span>
+				</div>
+			)
+		}
+	</a>
+	<div class="flex flex-1 flex-col gap-2.5 p-5">
+		<h3 class="m-0 font-display text-[22px] font-bold tracking-[-0.01em]">
+			<a href={`/build?cycle=${build.cycle}`} class="no-underline">{build.ideaText}</a>
+		</h3>
+		<p class="m-0 text-[15px] text-muted">Proposed by @{build.authorHandle}</p>
+		<div class="mt-auto flex justify-between border-t border-dashed border-silver pt-3 font-mono text-[13px] text-muted">
+			<span>{build.commitSha ?? '—'}</span>
+			<span>+{build.linesAdded} −{build.linesRemoved}</span>
+		</div>
+	</div>
+</article>

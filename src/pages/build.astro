@@ -1,0 +1,177 @@
+---
+import { buildByCycle, buildEvents, dryRunLabel, isActive, isStale, latestBuild, listBuilds, stepStates } from '../core/builds/queries';
+import type { BuildStatus } from '../core/db/schema';
+import { currentWindow } from '../core/cycle/windows';
+import BuildLog from '../core/components/BuildLog.astro';
+import BuildSteps from '../core/components/BuildSteps.astro';
+import BuildsTable from '../core/components/BuildsTable.astro';
+import DemoBadge from '../core/components/DemoBadge.astro';
+import Shell from '../core/components/Shell.astro';
+import { duration, hourMinute, pad3 } from '../core/format';
+import { intIn } from '../core/http/api';
+
+const requested = intIn(Astro.url.searchParams.get('cycle'), 1, 100000);
+const build = requested ? buildByCycle(requested) : latestBuild();
+if (requested && !build) Astro.response.status = 404;
+
+const events = build ? buildEvents(build.id) : [];
+const states = build ? stepStates(build.status, events.map((event) => event.tag)) : [];
+const recent = listBuilds(8);
+const stale = build ? isStale(build) : false;
+const live = build ? isActive(build.status) && !stale : false;
+// Demo builds are frozen "in progress": no stream to follow.
+const follow = live && build && !build.isDemo;
+const nextClose = currentWindow();
+
+const elapsed = build
+	? duration((build.finishedAt ? Date.parse(build.finishedAt) : Date.now()) - Date.parse(build.startedAt))
+	: '';
+
+// The last two words of the idea get the yellow highlight, like a headline.
+const words = build ? build.ideaText.split(' ') : [];
+const headStart = words.slice(0, -2).join(' ');
+const headEnd = words.slice(-2).join(' ');
+
+const STATUS: Record<BuildStatus, { label: string; bg: string; pulse: boolean }> = {
+	building: { label: 'Building now', bg: 'bg-accent', pulse: true },
+	repairing: { label: 'Repairing', bg: 'bg-accent', pulse: true },
+	live: { label: 'Live', bg: 'bg-ok', pulse: false },
+	rolled_back: { label: 'Rolled back', bg: 'bg-accent-soft', pulse: false },
+	failed: { label: 'Failed', bg: 'bg-accent-soft', pulse: false },
+};
+const status = build
+	? stale
+		? { label: 'Stalled', bg: 'bg-accent-soft', pulse: false }
+		: build.dryRun && build.status === 'live'
+			? { label: dryRunLabel(build.note), bg: 'bg-fog', pulse: false }
+			: (STATUS[build.status] ?? { label: build.status, bg: 'bg-fog', pulse: false })
+	: null;
+---
+
+<Shell title="Live build" dark description="Watch the winning idea get built, checked and published.">
+	<main class="wrap flex flex-col gap-12 pt-14 pb-24">
+		{
+			!build ? (
+				<section class="flex flex-col items-start gap-5">
+					<p class="eyebrow m-0 text-silver">Live build</p>
+					<h1 class="h-display m-0 text-white" style="font-size: clamp(40px, 6.2vw, 92px)">
+						{requested ? `No cycle ${pad3(requested)}.` : 'Nothing is being built yet.'}
+					</h1>
+					<p class="m-0 max-w-xl text-lg text-silver">
+						When an idea wins, every step of its build shows up here: the AI writing it, the safety checks, the
+						deploy.
+					</p>
+					<p class="m-0 font-mono text-[13px] text-silver">
+						Cycle {pad3(nextClose.number)} closes at {hourMinute(nextClose.closesAt)}.
+					</p>
+					<a href="/ideas" class="btn btn-lg border-accent bg-accent text-ink hover:text-ink">
+						Pick what gets built
+					</a>
+				</section>
+			) : (
+				<>
+					<section class="flex flex-col gap-5">
+						<div class="flex flex-wrap items-center gap-x-5 gap-y-3 font-mono text-[13px] tracking-[0.08em] uppercase">
+							<span class:list={['inline-flex items-center gap-2.5 px-3 py-1.5 font-medium text-ink', status!.bg]}>
+								<span class:list={['size-2 rounded-full bg-ink', status!.pulse && 'pw-pulse']} />
+								{status!.label}
+							</span>
+							<span class="text-silver">
+								Cycle {pad3(build.cycle)} · started {hourMinute(build.startedAt)} · {elapsed}{' '}
+								{live ? 'elapsed' : 'total'}
+							</span>
+							{build.isDemo && <DemoBadge dark />}
+						</div>
+						<h1 class="h-display m-0 max-w-[1100px] text-white" style="font-size: clamp(40px, 6.2vw, 92px)">
+							“{headStart && `${headStart} `}
+							<span class="text-sun">{headEnd}</span>”
+						</h1>
+						<p class="m-0 text-lg text-silver">
+							Proposed by @{build.authorHandle} · {build.votes} votes
+						</p>
+					</section>
+
+					<BuildSteps states={states} />
+
+					<div
+						class="flex flex-wrap items-start gap-8"
+						data-build-root={follow ? '' : undefined}
+						data-build-id={build.id}
+						data-status={build.status}
+						data-tags={JSON.stringify(events.map((event) => event.tag))}
+						data-last-event-id={events.at(-1)?.id ?? 0}
+					>
+						<section aria-label="Build log" class="min-w-0 flex-[999_1_600px] border-2 border-white bg-night">
+							<div class="flex items-center justify-between border-b border-night-line px-[18px] py-3 font-mono text-[13px] text-silver">
+								<span>build.log</span>
+								<span>{live ? 'live' : 'finished'}</span>
+							</div>
+							<div class="min-h-[360px]">
+								<BuildLog events={events} live={live} animate={!follow} />
+							</div>
+						</section>
+
+						<aside class="flex min-w-0 flex-[1_1_340px] flex-col gap-6">
+							<section aria-label="The change" class="flex flex-col gap-4 border-2 border-white p-6">
+								<h2 class="m-0 font-display text-2xl font-bold text-white">The change</h2>
+								{build.files.length > 0 ? (
+									<>
+										<div class="flex gap-5 font-mono text-[22px]">
+											<span class="text-ok">+{build.linesAdded}</span>
+											<span class="text-bad">−{build.linesRemoved}</span>
+											<span class="self-center text-base text-silver">
+												{build.files.length} {build.files.length === 1 ? 'file' : 'files'}
+											</span>
+										</div>
+										<ul class="m-0 list-none p-0 font-mono text-[13px] leading-loose text-[#d9dce0]">
+											{build.files.map((file) => (
+												<li class="break-all">{file}</li>
+											))}
+										</ul>
+									</>
+								) : live ? (
+									<p class="m-0 text-silver">The changed files show up here once the AI has finished writing.</p>
+								) : (
+									<p class="m-0 text-silver">No files were kept: the site went back to the last working version.</p>
+								)}
+								<p class="m-0 font-semibold text-accent-soft">
+									{build.commitSha ? `Published as commit ${build.commitSha}` : 'The commit appears once the build is live.'}
+								</p>
+							</section>
+							<section aria-label="Safety net" class="flex flex-col gap-2.5 border-2 border-sun bg-sun p-6 text-ink">
+								<h2 class="m-0 font-display text-2xl font-bold">If it breaks, it rolls back</h2>
+								<p class="m-0 text-base leading-normal">
+									The AI gets two tries to fix a failed build. If it still fails, the site returns to the last working
+									version and nothing is published.
+								</p>
+							</section>
+						</aside>
+					</div>
+				</>
+			)
+		}
+
+		{
+			recent.length > 0 && (
+				<section aria-label="Recent builds" class="flex flex-col gap-5">
+					<div class="flex flex-wrap items-end justify-between gap-4">
+						<h2 class="m-0 font-display font-extrabold tracking-[-0.03em] text-white" style="font-size: clamp(32px, 4vw, 48px)">
+							Recent builds
+						</h2>
+						<a href="/changelog" class="py-2.5 font-semibold">
+							Full changelog →
+						</a>
+					</div>
+					<BuildsTable builds={recent} dark current={build?.cycle} />
+				</section>
+			)
+		}
+	</main>
+</Shell>
+
+<script>
+	import { followBuild } from '../core/builds/live';
+
+	const root = document.querySelector<HTMLElement>('[data-build-root]');
+	if (root) followBuild(root);
+</script>
