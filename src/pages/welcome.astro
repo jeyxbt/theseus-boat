@@ -1,0 +1,141 @@
+---
+import Shell from "../core/components/Shell.astro";
+const words = ["Welcome", "to", "Theseus"];
+---
+
+<Shell title="Welcome Page">
+	<section class="stage relative overflow-hidden border-b-2 border-ink bg-sun">
+		<canvas id="wp-canvas" class="absolute inset-0 h-full w-full" aria-hidden="true"></canvas>
+		<div class="wrap relative py-16 md:py-24">
+			<p class="font-mono text-sm uppercase tracking-widest">A site shaped by its visitors</p>
+			<h1 class="font-display mt-4 text-6xl font-extrabold leading-none md:text-8xl">
+				{words.map((w, i) => (
+					<span class="wp-word mr-4 inline-block" style={`animation-delay:${i * 0.25}s`}>{w}</span>
+				))}
+			</h1>
+			<p class="wp-fade mt-6 max-w-xl text-lg">
+				Propose an idea, vote for your favourite, and watch it get built. Move your pointer around to play with the shapes.
+			</p>
+			<div class="wp-fade mt-8 flex flex-wrap gap-3" style="animation-delay:1.2s">
+				<a href="/ideas" class="btn">Propose an idea</a>
+				<a href="/build" class="btn">Watch the build</a>
+			</div>
+			<div class="mt-12 flex items-end gap-2" aria-hidden="true">
+				<span class="wp-bar bg-ink"></span>
+				<span class="wp-bar bg-accent"></span>
+				<span class="wp-bar bg-blue"></span>
+				<span class="wp-bar bg-paper"></span>
+				<span class="wp-bar bg-ink"></span>
+				<span class="wp-bar bg-accent"></span>
+				<span class="wp-bar bg-blue"></span>
+			</div>
+		</div>
+	</section>
+</Shell>
+
+<style>
+	.wp-word {
+		opacity: 0;
+		animation: wp-rise 0.8s cubic-bezier(0.2, 1.4, 0.4, 1) forwards;
+	}
+	.wp-fade {
+		opacity: 0;
+		animation: wp-rise 0.8s ease-out 0.9s forwards;
+	}
+	.wp-bar {
+		display: block;
+		width: 36px;
+		height: 40px;
+		border: 2px solid #111111;
+		box-shadow: 4px 4px 0 #111111;
+		animation: wp-bars 1.4s ease-in-out infinite;
+	}
+	.wp-bar:nth-child(2) { animation-delay: 0.1s; }
+	.wp-bar:nth-child(3) { animation-delay: 0.2s; }
+	.wp-bar:nth-child(4) { animation-delay: 0.3s; }
+	.wp-bar:nth-child(5) { animation-delay: 0.4s; }
+	.wp-bar:nth-child(6) { animation-delay: 0.5s; }
+	.wp-bar:nth-child(7) { animation-delay: 0.6s; }
+	@keyframes wp-rise {
+		from { opacity: 0; transform: translateY(40px) rotate(-4deg); }
+		to { opacity: 1; transform: none; }
+	}
+	@keyframes wp-bars {
+		0%, 100% { height: 24px; }
+		50% { height: 90px; }
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.wp-word, .wp-fade { animation: none; opacity: 1; }
+		.wp-bar { animation: none; }
+	}
+</style>
+
+<script>
+	const canvas = document.getElementById('wp-canvas') as HTMLCanvasElement | null;
+	const ctx = canvas ? canvas.getContext('2d') : null;
+	if (canvas && ctx && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+		const colors = ['#111111', '#FF5B1F', '#1F3BFF', '#EEF0F2'];
+		type P = { x: number; y: number; vx: number; vy: number; s: number; c: string; r: number; vr: number };
+		let w = 0;
+		let h = 0;
+		const ps: P[] = [];
+		const mouse = { x: -999, y: -999 };
+		const resize = () => {
+			w = canvas.clientWidth;
+			h = canvas.clientHeight;
+			canvas.width = w;
+			canvas.height = h;
+		};
+		resize();
+		window.addEventListener('resize', resize);
+		for (let i = 0; i < 40; i++) {
+			ps.push({
+				x: Math.random() * w,
+				y: Math.random() * h,
+				vx: (Math.random() - 0.5) * 1.2,
+				vy: (Math.random() - 0.5) * 1.2,
+				s: 12 + Math.random() * 28,
+				c: colors[i % colors.length],
+				r: Math.random() * 6,
+				vr: (Math.random() - 0.5) * 0.04,
+			});
+		}
+		canvas.parentElement?.addEventListener('pointermove', (e) => {
+			const b = canvas.getBoundingClientRect();
+			mouse.x = e.clientX - b.left;
+			mouse.y = e.clientY - b.top;
+		});
+		const tick = () => {
+			ctx.clearRect(0, 0, w, h);
+			for (const p of ps) {
+				const dx = p.x - mouse.x;
+				const dy = p.y - mouse.y;
+				const d = Math.hypot(dx, dy);
+				if (d < 140 && d > 0) {
+					p.vx += (dx / d) * 0.5;
+					p.vy += (dy / d) * 0.5;
+				}
+				p.vx *= 0.99;
+				p.vy *= 0.99;
+				p.x += p.vx;
+				p.y += p.vy;
+				p.r += p.vr;
+				if (p.x < -40) p.x = w + 40;
+				if (p.x > w + 40) p.x = -40;
+				if (p.y < -40) p.y = h + 40;
+				if (p.y > h + 40) p.y = -40;
+				ctx.save();
+				ctx.translate(p.x, p.y);
+				ctx.rotate(p.r);
+				ctx.fillStyle = p.c;
+				ctx.strokeStyle = '#111111';
+				ctx.lineWidth = 2;
+				ctx.fillRect(-p.s / 2, -p.s / 2, p.s, p.s);
+				ctx.strokeRect(-p.s / 2, -p.s / 2, p.s, p.s);
+				ctx.restore();
+			}
+			requestAnimationFrame(tick);
+		};
+		tick();
+	}
+</script>
