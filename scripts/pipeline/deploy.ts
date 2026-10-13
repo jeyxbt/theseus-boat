@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { routesFor } from '../../src/core/builds/pages';
 import { checkEssentials } from './browser';
 import type { PipelineConfig } from './config';
 import { freePort, killTree, lastLines, run, start } from './proc';
@@ -16,13 +17,6 @@ export function siteRoutes(changedFiles: string[]) {
 
 /** An attribute on the Shell's wrapper (not the site's name, which may change): a page without it has dropped the shell. */
 export const SHELL_MARKER = 'data-site-shell';
-
-/** Routes of the pages a change touched: src/pages/garden.astro → /garden. Dynamic routes are skipped. */
-export function routesFor(files: string[]) {
-	return files
-		.filter((file) => /^src\/pages\/.+\.astro$/.test(file) && !file.includes('['))
-		.map((file) => file.slice('src/pages'.length).replace(/\.astro$/, '').replace(/\/index$/, '') || '/');
-}
 
 /** Shared-data collections a change declared: src/collections/guestbook.json → guestbook. */
 export function collectionsFor(files: string[], cwd: string) {

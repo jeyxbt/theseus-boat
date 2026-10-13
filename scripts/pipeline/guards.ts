@@ -51,7 +51,7 @@ const PUBLIC_EXT = /\.(svg|png|jpe?g|webp|avif|gif)$/i;
 const CODE_EXT = /\.(astro|[cm]?[jt]s)$/i;
 
 export const LIMITS = {
-	maxChangedLines: 800,
+	maxChangedLines: 2000,
 	maxAddedBytes: 1024 * 1024,
 	maxImageBytes: 500 * 1024,
 	maxImagesBytes: 2 * 1024 * 1024,

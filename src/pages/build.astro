@@ -9,6 +9,7 @@ import Shell from '../core/components/Shell.astro';
 import { duration, hourMinute, pad3 } from '../core/format';
 import { intIn } from '../core/http/api';
 import { commitUrl } from '../core/site';
+import { pageLinks } from '../core/builds/pages';
 
 const requested = intIn(Astro.url.searchParams.get('cycle'), 1, 100000);
 const build = requested ? buildByCycle(requested) : latestBuild();
@@ -126,6 +127,9 @@ const status = build
 												<li class="break-all">{file}</li>
 											))}
 										</ul>
+										{pageLinks(build).map((route) => (
+											<a href={route} class="btn self-start">Open {route} →</a>
+										))}
 									</>
 								) : live ? (
 									<p class="m-0 text-silver">The changed files show up here once the AI has finished writing.</p>

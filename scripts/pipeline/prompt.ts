@@ -33,7 +33,7 @@ export const RULES = [
 	'- In the browser, navigate only to literal paths on this site starting with "/". No window.open, sendBeacon, meta refresh or prefetch.',
 	'- Never turn text into markup: no innerHTML or outerHTML (except clearing with innerHTML = \'\'), insertAdjacentHTML, document.write, DOMParser or set:html. Build elements with document.createElement and set textContent.',
 	'- In public/, only images (png, jpg, webp, avif, gif, svg). SVGs are plain drawings: no script, event handlers, foreignObject or external links.',
-	`- Keep the change small: under ${LIMITS.maxChangedLines} changed lines in total.`,
+	`- Build the idea as fully as it deserves, small or large, within ${LIMITS.maxChangedLines} changed lines in total. Split big features into components.`,
 	'- Follow the site\'s design: Tailwind classes, colours ink #111111, paper #EEF0F2, accent #FF5B1F, blue #1F3BFF, sun #FFD23F; fonts font-display (Bricolage Grotesque), font-sans, font-mono; 2px ink borders, square corners, hard offset shadows, the .btn class for buttons. No emoji.',
 	'- Write copy in plain, friendly English, short like the rest of the site.',
 	'- Do not commit or run git: the script that called you does that.',
@@ -65,7 +65,9 @@ function header(site: { pages: string[]; built: string[] }) {
 		`You implement changes to ${SITE_NAME}, a website its visitors build by proposing ideas and voting.`,
 		'Stack: Astro 7 (server-rendered), Tailwind 4, TypeScript. Read the existing code before you change anything.',
 		'',
-		`Pages you may change or add to: ${site.pages.length ? site.pages.join(', ') : 'src/pages/index.astro'}.`,
+		`Pages that exist now and that you may edit: ${site.pages.length ? site.pages.join(', ') : 'src/pages/index.astro'}.`,
+		'You are not limited to them. Build whatever the idea needs: new pages (src/pages/<name>.astro is served at /<name>), new components in src/components/, games, tools, galleries, whole sections.',
+		'If the idea asks for a page, a section, a game, a tool or anything with its own purpose, give it its own new page. Edit an existing page only when the idea is about that page. The site links every new page from its build card on its own, so you do not have to add links on the home page (you may, if the idea asks for it).',
 		site.built.length ? `Already built by earlier cycles (reuse, don't duplicate): ${site.built.join('; ')}.` : '',
 	];
 }
