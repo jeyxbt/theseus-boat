@@ -1,0 +1,32 @@
+---
+// Menu below the header. Add new pages to this list and they show up everywhere it is used.
+const pages = [
+	{ href: '/', label: 'Home' },
+	{ href: '/welcome', label: 'Welcome' },
+];
+const path = Astro.url.pathname.replace(/\/$/, '') || '/';
+---
+
+<nav aria-label="Pages" class="border-b-2 border-ink bg-card">
+	<ul class="wrap m-0 flex list-none flex-wrap items-center gap-x-2 gap-y-1 p-0 py-2">
+		<li class="mr-2 font-mono text-xs uppercase tracking-widest text-muted">Pages</li>
+		{
+			pages.map((p) => (
+				<li>
+					<a
+						href={p.href}
+						aria-current={path === p.href ? 'page' : undefined}
+						class:list={[
+							'inline-block border-2 px-3 py-1.5 text-[15px] font-semibold no-underline',
+							path === p.href
+								? 'border-ink bg-sun text-ink shadow-[3px_3px_0_#111111]'
+								: 'border-transparent text-ink hover:border-ink',
+						]}
+					>
+						{p.label}
+					</a>
+				</li>
+			))
+		}
+	</ul>
+</nav>

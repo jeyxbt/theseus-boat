@@ -1,9 +1,11 @@
 ---
 import Shell from "../core/components/Shell.astro";
+import SubNav from "../components/SubNav.astro";
 const words = ["Welcome", "to", "Theseus"];
 ---
 
 <Shell title="Welcome Page">
+	<SubNav />
 	<section class="stage relative overflow-hidden border-b-2 border-ink bg-sun">
 		<canvas id="wp-canvas" class="absolute inset-0 h-full w-full" aria-hidden="true"></canvas>
 		<div class="wrap relative py-16 md:py-24">

@@ -1,5 +1,6 @@
 ---
 // This page is the AI's to change. It reads data only through core/public/data.
+import SubNav from '../components/SubNav.astro';
 import BuildLog from '../core/components/BuildLog.astro';
 import BuiltCard from '../core/components/BuiltCard.astro';
 import Icon from '../core/components/Icon.astro';
@@ -29,6 +30,7 @@ const latestEvents = latest ? buildLog(latest.id) : [];
 ---
 
 <Shell>
+	<SubNav />
 	<main>
 	<section class="welcome border-b-2 border-ink bg-sun" aria-label="Welcome">
 		<div class="wrap flex flex-wrap items-center justify-between gap-4 py-5">
