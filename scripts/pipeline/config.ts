@@ -130,7 +130,13 @@ export function pipelineConfig(env: NodeJS.ProcessEnv = process.env): PipelineCo
 		repairTimeoutMs: num(env.ITERATE_REPAIR_TIMEOUT_MS, 6 * 60 * 1000),
 		maxRepairs: num(env.ITERATE_MAX_REPAIRS, 2),
 		perRunBudgetUsd: num(env.PER_RUN_BUDGET_USD, 3),
-		installCommand: pnpm ? [...pnpm, 'install', '--frozen-lockfile'] : null,
+		// pm2 starts the daemon with plain node, so npm_execpath is unset there. On
+		// Windows pnpm on PATH is a .cmd shim that can't be spawned without a shell.
+		installCommand: pnpm
+			? [...pnpm, 'install', '--frozen-lockfile']
+			: process.platform === 'win32'
+				? null
+				: ['pnpm', 'install', '--frozen-lockfile'],
 		buildCommand: [node, 'node_modules/astro/bin/astro.mjs', 'build'],
 		startCommand: [node, 'dist/server/entry.mjs'],
 		buildTimeoutMs: num(env.BUILD_TIMEOUT_MS, 5 * 60 * 1000),
