@@ -172,8 +172,9 @@ describe('the pipeline, end to end with a fake AI', () => {
 		const outcome = await runCycle(config(site, 'ok'), quiet);
 		assert.equal(outcome.status, 'live', JSON.stringify(outcome));
 
-		const build = get('SELECT status, dry_run, idea_id, commit_sha, files, cost_usd, repairs FROM builds WHERE id = ?', outcome.buildId);
+		const build = get('SELECT status, dry_run, idea_id, commit_sha, files, summary, cost_usd, repairs FROM builds WHERE id = ?', outcome.buildId);
 		assert.equal(build.status, 'live');
+		assert.equal(build.summary, 'There is a new garden page at /garden where flowers grow as you watch.');
 		assert.equal(build.dry_run, 1, 'a dry run never counts as shipped');
 		assert.equal(build.idea_id, idea.id);
 		assert.deepEqual(JSON.parse(build.files), ['src/pages/garden.astro']);

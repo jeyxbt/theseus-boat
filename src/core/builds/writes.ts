@@ -5,6 +5,7 @@ import { AI_SPEND_KINDS } from '../db/schema';
 /** Log lines are shown to everyone: keep them short and on one line. */
 const MAX_MESSAGE = 500;
 const MAX_TAG = 16;
+export const SUMMARY_MAX = 600;
 
 function oneLine(text: string, max: number) {
 	const clean = text.replace(/[\u0000-\u001F\u007F]+/g, ' ').replace(/\s+/g, ' ').trim();
@@ -98,6 +99,7 @@ export type BuildOutcome = {
 	linesAdded?: number;
 	linesRemoved?: number;
 	files?: string[];
+	summary?: string | null;
 	/** Built and tested, never applied to the site. */
 	dryRun?: boolean;
 };
@@ -106,7 +108,7 @@ export function finishBuild(buildId: number, outcome: BuildOutcome) {
 	const now = nowIso();
 	run(
 		`UPDATE builds SET status = ?, note = ?, error = ?, commit_sha = ?, lines_added = ?, lines_removed = ?,
-			files = ?, dry_run = ?, finished_at = ?, heartbeat_at = ?
+			files = ?, summary = ?, dry_run = ?, finished_at = ?, heartbeat_at = ?
 		 WHERE id = ?`,
 		outcome.status,
 		outcome.note ? oneLine(outcome.note, 80) : null,
@@ -115,6 +117,7 @@ export function finishBuild(buildId: number, outcome: BuildOutcome) {
 		outcome.linesAdded ?? 0,
 		outcome.linesRemoved ?? 0,
 		JSON.stringify(outcome.files ?? []),
+		outcome.summary ? outcome.summary.slice(0, SUMMARY_MAX) : null,
 		outcome.dryRun ? 1 : 0,
 		now,
 		now,

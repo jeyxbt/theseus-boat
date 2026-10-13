@@ -36,6 +36,7 @@ import { acquireLock } from './lock';
 import { buildPrompt, commitMessage, repairPrompt, type Winner } from './prompt';
 import { applyToSite, checkLive, liveState, publishProduction, pushSite, revertOnSite } from './release';
 import { discardChanges, git, prepareRunner, snapshotDatabase } from './runner';
+import { summaryFrom } from './summary';
 
 type SkipReason = 'paused' | 'already_built' | 'budget' | 'final_gate' | 'moderation_unavailable';
 
@@ -164,6 +165,8 @@ async function build(
 
 		const site = { pages: aiPages(config.runnerDir), built: shippedBuilds(30).map((b) => b.ideaText) };
 		let spent = 0;
+		let summary: string | null = null;
+		const secrets = secretValuesFrom(process.env);
 		const agent = async (prompt: string, timeoutMs: number, kind: 'implement' | 'repair') => {
 			const result: AgentResult = await runAgent({
 				config,
@@ -185,6 +188,8 @@ async function build(
 				numTurns: result.numTurns,
 				durationMs: result.durationMs,
 			});
+			// A repair describes the whole change again; keep the first note if it doesn't.
+			if (result.ok) summary = summaryFrom(result.finalText, secrets) ?? summary;
 			return result;
 		};
 
@@ -199,7 +204,6 @@ async function build(
 		const first = await agent(buildPrompt(winner, site), config.implementTimeoutMs, 'implement');
 		if (!first.ok) return fail(`the AI did not finish: ${first.error}`, 'AI did not finish', first.output.slice(-2000));
 
-		const secrets = secretValuesFrom(process.env);
 		const check = () => {
 			const review = reviewWorkingTree(config.runnerDir, secrets);
 			if (review.ok && review.files.length === 0) return { ok: false, problems: ['no changes were made'], review };
@@ -284,6 +288,7 @@ async function build(
 			status: 'live',
 			note: repairs > 0 ? `fixed on try ${repairs + 1}` : null,
 			dryRun,
+			summary,
 			...changed,
 		});
 		return { status: 'live', buildId, commitSha: sha, repairs };

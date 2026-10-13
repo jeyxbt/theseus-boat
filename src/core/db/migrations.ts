@@ -14,7 +14,9 @@ type Migration = (db: DatabaseSync, now: number) => void;
  * copy the rows, drop the old table, rename. migrate() turns foreign keys off
  * for the duration, so the drop doesn't cascade.
  */
-export const MIGRATIONS: Migration[] = [];
+export const MIGRATIONS: Migration[] = [
+	(db) => db.exec('ALTER TABLE builds ADD COLUMN summary TEXT'),
+];
 
 /** Runs pending migrations, one transaction each, with foreign keys checked at the end. */
 export function migrate(db: DatabaseSync, fresh: boolean, now = Date.now(), migrations: Migration[] = MIGRATIONS) {

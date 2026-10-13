@@ -17,6 +17,8 @@ export type AgentResult = {
 	/** Files the agent wrote or edited, relative to the working tree. */
 	touched: string[];
 	output: string;
+	/** The agent's last words to us, where it describes what it built. */
+	finalText: string;
 };
 
 /** The only tools, and where they may write. Edit rules cover Write as well. */
@@ -181,6 +183,7 @@ export async function runAgent(input: {
 			error,
 			touched: [...touched],
 			output: outcome.output,
+			finalText: typeof final?.result === 'string' && !final.is_error ? final.result : '',
 		};
 	} finally {
 		rmSync(dir, { recursive: true, force: true });

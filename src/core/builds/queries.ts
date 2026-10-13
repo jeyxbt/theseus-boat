@@ -5,7 +5,7 @@ type BuildRow = Omit<Build, 'files' | 'dryRun'> & { files: string; dryRun: numbe
 
 const COLUMNS = `id, window_id AS windowId, idea_id AS ideaId, cycle, idea_text AS ideaText,
 	author_handle AS authorHandle, votes, status, note, error, previous_sha AS previousSha,
-	commit_sha AS commitSha, repairs, lines_added AS linesAdded, lines_removed AS linesRemoved, files,
+	commit_sha AS commitSha, repairs, lines_added AS linesAdded, lines_removed AS linesRemoved, files, summary,
 	cost_usd AS costUsd, started_at AS startedAt, heartbeat_at AS heartbeatAt, finished_at AS finishedAt,
 	dry_run AS dryRun`;
 

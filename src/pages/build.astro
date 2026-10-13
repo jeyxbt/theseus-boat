@@ -9,7 +9,7 @@ import Shell from '../core/components/Shell.astro';
 import { duration, hourMinute, pad3 } from '../core/format';
 import { intIn } from '../core/http/api';
 import { commitUrl } from '../core/site';
-import { pageLinks } from '../core/builds/pages';
+import { whereToSee } from '../core/builds/pages';
 
 const requested = intIn(Astro.url.searchParams.get('cycle'), 1, 100000);
 const build = requested ? buildByCycle(requested) : latestBuild();
@@ -31,6 +31,9 @@ const elapsed = build
 const words = build ? build.ideaText.split(' ') : [];
 const headStart = words.slice(0, -2).join(' ');
 const headEnd = words.slice(-2).join(' ');
+
+const shipped = build?.status === 'live' && !build.dryRun;
+const seeIt = build ? whereToSee(build) : [];
 
 const STATUS: Record<BuildStatus, { label: string; bg: string; pulse: boolean }> = {
 	building: { label: 'Building now', bg: 'bg-accent', pulse: true },
@@ -90,6 +93,26 @@ const status = build
 						</p>
 					</section>
 
+					{shipped ? (
+						<section aria-label="What's new" class="flex max-w-[900px] flex-col gap-4 border-2 border-white bg-white p-6 text-ink sm:p-8">
+							<h2 class="m-0 font-display text-3xl font-bold tracking-[-0.01em]">What's new</h2>
+							<p class="m-0 text-lg leading-relaxed">{build.summary ?? 'This idea is now part of the site.'}</p>
+							{seeIt.length > 0 && (
+								<div class="flex flex-wrap gap-3">
+									{seeIt.map((link) => (
+										<a href={link.href} class="btn btn-lg border-accent bg-accent text-ink hover:text-ink">
+											{link.label} →
+										</a>
+									))}
+								</div>
+							)}
+						</section>
+					) : live ? (
+						<p class="m-0 max-w-[900px] text-lg text-silver">
+							Once it's live, a short note here will say what's new and where to find it.
+						</p>
+					) : null}
+
 					<BuildSteps states={states} />
 
 					<div
@@ -127,9 +150,6 @@ const status = build
 												<li class="break-all">{file}</li>
 											))}
 										</ul>
-										{pageLinks(build).map((route) => (
-											<a href={route} class="btn self-start">Open {route} →</a>
-										))}
 									</>
 								) : live ? (
 									<p class="m-0 text-silver">The changed files show up here once the AI has finished writing.</p>

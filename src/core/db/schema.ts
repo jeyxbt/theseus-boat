@@ -65,6 +65,7 @@ export function buildsTable(name = 'builds') {
 		lines_added INTEGER NOT NULL DEFAULT 0,
 		lines_removed INTEGER NOT NULL DEFAULT 0,
 		files TEXT NOT NULL DEFAULT '[]',
+		summary TEXT,
 		cost_usd REAL NOT NULL DEFAULT 0 CHECK (cost_usd >= 0),
 		started_at TEXT NOT NULL,
 		heartbeat_at TEXT,
@@ -247,6 +248,8 @@ export type Build = {
 	linesAdded: number;
 	linesRemoved: number;
 	files: string[];
+	/** What the change is, for visitors, in plain words. Written by the AI, checked before it is kept. */
+	summary: string | null;
 	costUsd: number;
 	startedAt: string;
 	heartbeatAt: string | null;

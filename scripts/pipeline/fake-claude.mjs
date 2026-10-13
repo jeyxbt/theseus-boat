@@ -33,7 +33,8 @@ const write = (path, text) => {
 	emit({ type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Write', input: { file_path: join(process.cwd(), path) } }] } });
 };
 const page = (body) => `---\nconst title = 'Garden';\n---\n<main data-site-shell><h1>THESEUS</h1><p>${body}</p></main>\n`;
-const done = (cost) => emit({ type: 'result', subtype: 'success', is_error: false, total_cost_usd: cost, num_turns: 3, duration_ms: 1200, usage: { input_tokens: 1000, output_tokens: 200 } });
+const NOTE = 'Done.\n<<<SUMMARY\nThere is a new garden page at /garden where flowers grow as you watch.\nSUMMARY>>>';
+const done = (cost) => emit({ type: 'result', subtype: 'success', is_error: false, result: NOTE, total_cost_usd: cost, num_turns: 3, duration_ms: 1200, usage: { input_tokens: 1000, output_tokens: 200 } });
 
 emit({ type: 'system', subtype: 'init' });
 
