@@ -9,7 +9,7 @@ export function getSiteUrl() {
 	return read('SITE_URL', 'http://127.0.0.1:4321').replace(/\/$/, '');
 }
 
-const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]', '0.0.0.0']);
+export const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]', '0.0.0.0']);
 
 /**
  * Origin shown to OAuth providers as the redirect base. SITE_URL wins: the

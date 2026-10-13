@@ -235,10 +235,10 @@ describe('the moment voting ends', () => {
 });
 
 describe('numbering', () => {
-	test('continues after the highest build cycle, so demo builds never collide', () => {
+	test('continues after the highest build cycle, so numbers never collide', () => {
 		run(
-			`INSERT INTO builds (cycle, idea_text, author_handle, status, started_at, is_demo)
-			 VALUES (500, 'demo', 'demo', 'live', ?, 1)`,
+			`INSERT INTO builds (cycle, idea_text, author_handle, status, started_at)
+			 VALUES (500, 'a build recorded without a window', 'someone', 'live', ?)`,
 			nowIso(),
 		);
 		const before = currentWindow();

@@ -4,46 +4,63 @@ import { useTempDatabase } from './helpers.mjs';
 
 useTempDatabase('builds');
 
-const { run } = await import('../src/core/db/client.ts');
-const { seedDemo } = await import('../src/core/db/seed.ts');
+const { run, get, nowIso } = await import('../src/core/db/client.ts');
 const { latestBuild, buildByCycle, listBuilds, shippedBuilds, buildEvents, stepStates, resultLabel } = await import(
 	'../src/core/builds/queries.ts'
 );
 const { duration, pad3 } = await import('../src/core/format.ts');
+
+/** A build row with its log, recorded straight into the table. */
+function addBuild({ cycle, status = 'live', note = null, dryRun = 0, files = '[]', events = [] }) {
+	const { id } = get(
+		`INSERT INTO builds (cycle, idea_text, author_handle, status, note, dry_run, files, started_at)
+		 VALUES (?, ?, 'someone', ?, ?, ?, ?, ?) RETURNING id`,
+		cycle,
+		`Idea number ${cycle}`,
+		status,
+		note,
+		dryRun,
+		files,
+		nowIso(),
+	);
+	events.forEach((tag, index) => run('INSERT INTO build_events (build_id, ts, tag, message) VALUES (?, ?, ?, ?)', id, nowIso(), tag, `step ${index}`));
+	return id;
+}
 
 describe('empty database', () => {
 	test('no builds means null and empty lists, not errors', () => {
 		assert.equal(latestBuild(), null);
 		assert.deepEqual(listBuilds(), []);
 		assert.equal(buildByCycle(1), null);
+		assert.deepEqual(shippedBuilds(), []);
 	});
 });
 
-describe('demo builds', () => {
-	test('latest is the build in progress', () => {
-		seedDemo();
-		const build = latestBuild();
-		assert.equal(build.cycle, 37);
-		assert.equal(build.status, 'building');
-		assert.equal(build.isDemo, true);
-		assert.ok(Array.isArray(build.files) && build.files.length > 0);
+describe('reading builds', () => {
+	test('latest is the highest cycle, and the list is newest first', () => {
+		addBuild({ cycle: 1, events: ['window', 'winner', 'live'] });
+		addBuild({ cycle: 3, status: 'building', events: ['window'] });
+		addBuild({ cycle: 2, status: 'rolled_back', note: 'build failed' });
+		assert.equal(latestBuild().cycle, 3);
+		assert.deepEqual(listBuilds().map((b) => b.cycle), [3, 2, 1]);
 	});
 
-	test('lists newest first; shipped only has live builds', () => {
-		const cycles = listBuilds().map((b) => b.cycle);
-		assert.deepEqual(cycles, [...cycles].sort((a, b) => b - a));
-		assert.ok(shippedBuilds().every((b) => b.status === 'live'));
+	test('shipped only has live builds that were really applied', () => {
+		addBuild({ cycle: 4, dryRun: 1, note: 'dry run' });
+		addBuild({ cycle: 5 });
+		assert.deepEqual(shippedBuilds().map((b) => b.cycle), [5, 1]);
 	});
 
 	test('events come back in order', () => {
-		const events = buildEvents(buildByCycle(35).id);
-		assert.equal(events[0].tag, 'window');
-		assert.equal(events.at(-1).tag, 'live');
+		const events = buildEvents(buildByCycle(1).id);
+		assert.deepEqual(events.map((e) => e.tag), ['window', 'winner', 'live']);
 	});
 
-	test('a broken files column does not break the page', () => {
-		run("UPDATE builds SET files = 'not json' WHERE cycle = 36");
-		assert.deepEqual(buildByCycle(36).files, []);
+	test('files come back as a list, and a broken files column does not break the page', () => {
+		addBuild({ cycle: 6, files: '["src/pages/garden.astro"]' });
+		assert.deepEqual(buildByCycle(6).files, ['src/pages/garden.astro']);
+		run("UPDATE builds SET files = 'not json' WHERE cycle = 6");
+		assert.deepEqual(buildByCycle(6).files, []);
 	});
 });
 
@@ -91,11 +108,9 @@ describe('labels', () => {
 	test('a dry run is never labelled Live, and never counts as shipped', () => {
 		assert.equal(resultLabel({ status: 'live', note: null, dryRun: true }), 'Dry run passed');
 		assert.equal(resultLabel({ status: 'live', note: 'dry run', dryRun: true }), 'Dry run passed');
-		assert.equal(resultLabel({ status: 'live', note: 'simulated', dryRun: true }), 'Simulated');
 		assert.equal(resultLabel({ status: 'failed', note: 'build failed', dryRun: true }), 'Failed · build failed');
-		run("UPDATE builds SET dry_run = 1 WHERE cycle = 36");
-		assert.ok(!shippedBuilds().some((b) => b.cycle === 36));
-		assert.equal(buildByCycle(36).dryRun, true);
+		assert.equal(buildByCycle(4).dryRun, true);
+		assert.ok(!shippedBuilds().some((b) => b.cycle === 4));
 	});
 
 	test('formatting', () => {

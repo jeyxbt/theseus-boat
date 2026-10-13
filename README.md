@@ -1,4 +1,4 @@
-# Theseus
+﻿# Theseus
 
 > The Athenians kept the ship of Theseus in their harbour for centuries. Whenever a plank rotted, they replaced it with a new one. In time, not a single original timber was left, and philosophers have argued ever since: is it still the same ship?
 
@@ -95,13 +95,17 @@ By default builds are dry runs: tested and committed in a separate working copy,
 | `pnpm dev` | Development server |
 | `pnpm build`, `pnpm start` | Production build and server |
 | `pnpm test` | All tests |
+| `pnpm typecheck` | TypeScript, over the whole project |
 | `pnpm cycle:daemon` | Run the voting cycle and builds without supervision |
 | `pnpm cycle:run` | Build the oldest waiting winner once |
 | `pnpm cycle:close` | End the current voting window now |
-| `pnpm cycle:canary` | Check that the agent's sandbox really blocks what it should |
-| `pnpm build:simulate` | Play a fake build, to see `/build` without spending anything |
+| `pnpm cycle:canary` | Check that the Claude Code agent's sandbox really blocks what it should |
+| `pnpm admin status\|pause\|resume\|cap\|min-votes\|remove-idea` | Run the site: see where it stands, stop builds, set the spend cap, take an idea down |
 | `pnpm store:remove <collection> <id>` | Remove any record from a collection |
-| `pnpm db:seed`, `pnpm db:reset` | Sample data for development; delete the database |
+| `pnpm preflight` | Is this setup ready to run in public? Lists what is missing |
+| `pnpm ai:check` | Does the Anthropic API work from here? A few cents |
+| `pnpm db:backup` | A verified copy of the database, while it runs |
+| `pnpm db:reset` | Delete the database (stop the dev server first) |
 
 ### Configuration
 
@@ -110,17 +114,28 @@ Everything is set in `.env`, read when the server starts. The most useful settin
 | Variable | Default | |
 |---|---|---|
 | `WINDOW_MINUTES` | `360` | Length of a voting window |
-| `DEPLOY_MODE` | `preview` | `preview` builds dry runs; `local` applies changes to this repository and checks the running site |
+| `DEPLOY_MODE` | `preview` | `preview` builds dry runs; `local` applies changes to this repository and checks the running dev server; `production` builds and restarts the site after each change (see Deploying) |
+| `AGENT_RUNTIME` | `cli` | What runs the build agent. `cli` is Claude Code on a signed-in subscription, for a laptop. `sdk` is the Messages API with `ANTHROPIC_API_KEY`: for servers |
 | `MODERATION_PROVIDER` | `cli` | `cli` uses a signed-in Claude Code; `api` uses the Anthropic API with `ANTHROPIC_API_KEY`, for servers; `off` skips AI review |
 | `MODERATION_MODEL` | `claude-haiku-5-5` | Review on submit |
 | `FINAL_GATE_MODEL` | `claude-sonnet-5-5` | Review before a build |
 | `CLAUDE_MODEL` | `claude-sonnet-5-5` | The model that builds |
-| `CLAUDE_AUTH` | `oauth` | `api-key` runs the agent with `ANTHROPIC_API_KEY` instead of a signed-in Claude Code |
-| `PER_RUN_BUDGET_USD` | `3` | Spending cap per build; the monthly cap is a setting in the database (75) |
+| `ANTHROPIC_WORKSPACE_ID` | unset | Only if the API says the key isn't scoped to a workspace: that workspace's ID (`wrkspc_…`). A key made inside a workspace doesn't need it |
+| `AGENT_EFFORT` | `medium` | `low`, `medium` or `high`: how hard the `sdk` agent thinks, and what it costs |
+| `PER_RUN_BUDGET_USD` | `3` | Spending cap per build; the monthly cap is a setting (`pnpm admin cap`, 75 to start) |
 | `BROWSER_CHECK` | `required` | `off` skips the browser check on purpose. Without a browser the build fails rather than skip silently |
 | `CHROME_PATH` | found automatically | Chrome or Chromium for the browser check |
 
-Settings that change while the site runs (`min_votes`, `monthly_cap_usd`, `paused`) live in the `settings` table.
+More settings (restart command, git push, backups, timeouts) are described where the server is set up. Settings that change while the site runs (`min_votes`, `monthly_cap_usd`, `paused`) live in the database and are changed with `pnpm admin`.
+
+### The agent: Claude Code or the API
+
+The build agent can run two ways, and the checks around it are the same for both.
+
+- **`AGENT_RUNTIME=cli`** runs Claude Code headless. It is the easy way on a laptop: it uses your signed-in subscription and needs no key.
+- **`AGENT_RUNTIME=sdk`** runs the agent as a loop on the Messages API with an `ANTHROPIC_API_KEY`, which is what a server needs. The agent gets five tools (read, list, search, edit, write) and no shell or network. Each path it names is checked in code: writes go through the same rule the diff review applies, secrets and databases can't be read, and nothing can leave the working tree, symbolic links included. Every turn is paid for from the token counts the API reports (cache reads and writes too), and the run stops when the budget, the turn limit or the clock runs out.
+
+Moderation has the same two ways (`MODERATION_PROVIDER`). On a server both use the API, and `pnpm ai:check` proves the key works for each, for a few cents.
 
 ### Sign-in providers
 
@@ -158,11 +173,17 @@ scripts/
 tests/             unit and end-to-end tests (node:test)
 ```
 
-Built with Astro 7 (server-rendered on Node), Tailwind CSS 4, SQLite through `node:sqlite`, and Claude Code with the Anthropic SDK. The dependency list is short on purpose: Astro and its Node adapter, Tailwind, self-hosted fonts and icons, the Anthropic SDK, and `tsx` for the scripts.
+Built with Astro 7 (server-rendered on Node), Tailwind CSS 4, SQLite through `node:sqlite`, and Claude, through Claude Code or the Anthropic SDK. The dependency list is short on purpose: Astro and its Node adapter, Tailwind, self-hosted fonts and icons, the Anthropic SDK, `tsx` for the scripts, and TypeScript for type checks.
+
+## Deploying
+
+The server setup (the process manager, the proxy and the environment template) is kept outside this repository. What this repository provides for it: the production mode above, `pnpm preflight` (lists what must be fixed before a setup runs in public, and the server prints the same list at start), `pnpm db:backup` for verified database copies, `pnpm admin` for running the site, and `pnpm ai:check` to prove the API key works.
+
+In `DEPLOY_MODE=production` each winner that passes the preview checks is applied to the live checkout, built, the site restarted and checked again with every check the preview had, in a real browser too. If the site is broken after that, the change is reverted with its own commit, the site rebuilt and restarted, and the build shows as rolled back; if even that fails, the build says the site is down and needs a person. With `GIT_PUSH=1` every shipped change and revert is pushed to the public repository. `pnpm preflight` lists what must be fixed before a setup runs in public, and the server prints the same list at start.
 
 ## Status
 
-Theseus runs end to end on a single machine: voting windows, AI review, the build pipeline with its checks and rollbacks, and the shared-data store. Next come a hosted deployment (server, domain, HTTPS, CI), bot protection for sign-in and votes, and a corpus of known attacks that every layer is tested against.
+Theseus runs end to end: voting windows, AI review, the build pipeline with its checks, rollbacks and production mode, the shared-data store, and everything a first deployment needs. It has not been run on a real server yet, and the API paths (the agent and the review through the SDK) are tested against stand-ins, not against the live API: `pnpm ai:check` does that with your key. Still to come: bot protection for sign-in and votes (a captcha, account age, anomaly detection, bans) and a corpus of known attacks that every layer is tested against.
 
 ## Contributing
 

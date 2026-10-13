@@ -69,7 +69,6 @@ export function buildsTable(name = 'builds') {
 		started_at TEXT NOT NULL,
 		heartbeat_at TEXT,
 		finished_at TEXT,
-		is_demo INTEGER NOT NULL DEFAULT 0 CHECK (is_demo IN (0, 1)),
 		dry_run INTEGER NOT NULL DEFAULT 0 CHECK (dry_run IN (0, 1))
 	)`;
 }
@@ -252,7 +251,6 @@ export type Build = {
 	startedAt: string;
 	heartbeatAt: string | null;
 	finishedAt: string | null;
-	isDemo: boolean;
 	/** Built and tested but never applied to the site. */
 	dryRun: boolean;
 };

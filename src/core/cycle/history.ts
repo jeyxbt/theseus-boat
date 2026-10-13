@@ -17,7 +17,6 @@ export type CycleEntry = {
 	linesAdded: number;
 	linesRemoved: number;
 	startedAt: string;
-	isDemo: boolean;
 	dryRun: boolean;
 	hasBuild: boolean;
 };
@@ -48,7 +47,6 @@ export function listCycles(limit = 500): CycleEntry[] {
 		linesAdded: build.linesAdded,
 		linesRemoved: build.linesRemoved,
 		startedAt: build.startedAt,
-		isDemo: build.isDemo,
 		dryRun: build.dryRun,
 		hasBuild: true,
 	}));
@@ -71,7 +69,6 @@ export function listCycles(limit = 500): CycleEntry[] {
 			linesAdded: 0,
 			linesRemoved: 0,
 			startedAt: window.closedAt ?? window.closesAt,
-			isDemo: false,
 			dryRun: false,
 			hasBuild: false,
 		});

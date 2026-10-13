@@ -14,15 +14,18 @@
 		"preview": "astro preview",
 		"start": "node --env-file-if-exists=.env dist/server/entry.mjs",
 		"astro": "astro",
-		"db:seed": "node --env-file-if-exists=.env --import tsx scripts/db-seed.ts",
 		"db:reset": "node --env-file-if-exists=.env --import tsx scripts/db-reset.ts",
+		"db:backup": "node --env-file-if-exists=.env --import tsx scripts/db-backup.ts",
+		"admin": "node --env-file-if-exists=.env --import tsx scripts/admin.ts",
 		"cycle:close": "node --env-file-if-exists=.env --import tsx scripts/cycle-close.ts",
-		"build:simulate": "node --env-file-if-exists=.env --import tsx scripts/build-simulate.ts",
 		"cycle:run": "node --env-file-if-exists=.env --import tsx scripts/cycle-run.ts",
 		"cycle:daemon": "node --env-file-if-exists=.env --import tsx scripts/cycle-daemon.ts",
 		"store:remove": "node --env-file-if-exists=.env --import tsx scripts/store-remove.ts",
 		"cycle:canary": "node --env-file-if-exists=.env --import tsx scripts/pipeline/canary.ts",
-		"test": "tsx --test tests/*.test.mjs"
+		"test": "tsx --test tests/*.test.mjs",
+		"typecheck": "tsc --noEmit",
+		"preflight": "node --env-file-if-exists=.env --import tsx scripts/preflight.ts",
+		"ai:check": "node --env-file-if-exists=.env --import tsx scripts/ai-check.ts"
 	},
 	"dependencies": {
 		"@anthropic-ai/sdk": "^0.132.1",
@@ -35,5 +38,10 @@
 		"astro": "7.2.10",
 		"tailwindcss": "4.3.3",
 		"tsx": "^4.19.0"
+	},
+	"packageManager": "pnpm@10.34.4",
+	"devDependencies": {
+		"@types/node": "^24.19.2",
+		"typescript": "~5.9.3"
 	}
 }

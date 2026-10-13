@@ -2,7 +2,6 @@
 // This page is the AI's to change. It reads data only through core/public/data.
 import BuildLog from '../core/components/BuildLog.astro';
 import BuiltCard from '../core/components/BuiltCard.astro';
-import DemoBadge from '../core/components/DemoBadge.astro';
 import Icon from '../core/components/Icon.astro';
 import Marquee from '../core/components/Marquee.astro';
 import Shell from '../core/components/Shell.astro';
@@ -146,7 +145,6 @@ const latestEvents = latest ? buildLog(latest.id) : [];
 							<span class="font-display text-[22px] font-bold text-white">
 								{latest.status === 'building' ? 'Happening right now' : 'Latest build'}
 							</span>
-							{latest.isDemo && <DemoBadge dark />}
 						</div>
 						<a href="/build" class="py-2.5 font-semibold text-accent-soft hover:text-white">
 							Watch the full build →
@@ -162,10 +160,7 @@ const latestEvents = latest ? buildLog(latest.id) : [];
 		shipped.length > 0 && (
 			<section id="built" class="wrap pt-10 pb-[88px]">
 				<div class="mb-8 flex flex-wrap items-end justify-between gap-4">
-					<h2 class="h-section m-0 flex flex-wrap items-center gap-4">
-						Built by you
-						{shipped.some((build) => build.isDemo) && <DemoBadge />}
-					</h2>
+					<h2 class="h-section m-0">Built by you</h2>
 					<a href="/changelog" class="py-3 font-semibold">
 						Full changelog →
 					</a>

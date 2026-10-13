@@ -10,10 +10,15 @@
  * next start closes the unfinished build as interrupted).
  */
 import { closeDb } from '../src/core/db/client';
-import { pipelineConfig } from './pipeline/config';
+import { configProblems, pipelineConfig } from './pipeline/config';
 import { runCycle, type CycleOutcome } from './pipeline/iterate';
 
 const config = pipelineConfig();
+const problems = configProblems(config);
+if (problems.length > 0) {
+	for (const problem of problems) console.error(`Configuration problem: ${problem}`);
+	process.exit(2);
+}
 const pollMs = Math.max(5_000, Number(process.env.CYCLE_POLL_MS) || 30_000);
 const MAX_BACKOFF_MS = 10 * 60 * 1000;
 
@@ -53,7 +58,11 @@ function describe(outcome: CycleOutcome) {
 }
 
 say(`Cycle daemon: ${config.deployMode} mode, checking every ${pollMs / 1000} s. Runner ${config.runnerDir}.`);
-if (config.deployMode === 'local') say(`Changes go into ${config.sourceDir} and are checked on ${config.liveUrl}.`);
+say(`The agent runs on ${config.agentRuntime === 'sdk' ? `the Anthropic API (${config.model})` : `Claude Code (${config.model})`}.`);
+if (config.deployMode !== 'preview') {
+	say(`Changes go into ${config.sourceDir} and are checked on ${config.liveUrl}${config.deployMode === 'production' ? ' after a rebuild and restart' : ''}.`);
+	if (config.pushAfterShip) say(`Every shipped change is pushed to ${config.pushRemote}.`);
+}
 
 let failures = 0;
 while (!stopping) {

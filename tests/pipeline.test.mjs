@@ -34,6 +34,7 @@ writeFileSync('dist/ok', 'built');
 
 // LIVE=1 plays the dev server the site runs on: no security policy, and LIVECRASH pages fail only there.
 // LIVE=prod plays a production build that serves old code.
+// LIVE=production plays a restarted production site: a security policy, and LIVECRASH pages fail.
 const FAKE_SERVER = `import { createServer } from 'node:http';
 import { existsSync, readFileSync } from 'node:fs';
 const live = process.env.LIVE;
@@ -47,7 +48,7 @@ createServer((req, res) => {
 	}
 	const file = 'src/pages' + (path === '/' ? '/index' : path) + '.astro';
 	const text = existsSync(file) ? readFileSync(file, 'utf8') : '';
-	if (text.includes('CRASH') && (!text.includes('LIVECRASH') || live === '1')) { res.writeHead(500); return res.end('Internal error: CRASH in ' + file); }
+	if (text.includes('CRASH') && (!text.includes('LIVECRASH') || live === '1' || live === 'production')) { res.writeHead(500); return res.end('Internal error: CRASH in ' + file); }
 	if (live && !existsSync(file) && path !== '/ideas' && path !== '/build' && path !== '/changelog' && path !== '/rules') { res.writeHead(404); return res.end('not found'); }
 	res.writeHead(200, live === '1' ? { 'content-type': 'text/html' } : { 'content-type': 'text/html', 'content-security-policy': "default-src 'self'" });
 	res.end('<header data-site-shell>THESEUS</header><main>' + path + '</main>');
@@ -97,6 +98,10 @@ function config(site, scenario, overrides = {}) {
 		sourceDir: site.source,
 		runnerDir: site.runner,
 		deployMode: 'preview',
+		agentRuntime: 'cli',
+		agentEffort: 'medium',
+		agentMaxTurns: 20,
+		agentMaxOutputTokens: 8000,
 		claudeCommand: [process.execPath, FAKE_CLAUDE, `--scenario=${scenario}`],
 		claudeAuth: 'oauth',
 		model: 'fake-model',
@@ -117,9 +122,19 @@ function config(site, scenario, overrides = {}) {
 		liveSettleMs: 1500,
 		// The fake site has no real header; the browser check has its own tests.
 		browserCheck: 'off',
+		restartCommand: null,
+		restartTimeoutMs: 10_000,
+		pushAfterShip: false,
+		pushRemote: 'origin',
 		...overrides,
 	};
 }
+
+/** A command that notes each restart in a file, and exits with the given code. */
+function restarter(logFile, exitCode = 0) {
+	return [process.execPath, '-e', `require('node:fs').appendFileSync(${JSON.stringify(logFile)}, 'r'); process.exit(${exitCode});`];
+}
+const restarts = (logFile) => (existsSync(logFile) ? readFileSync(logFile, 'utf8').length : 0);
 
 let counter = 0;
 function makeUser() {
@@ -481,6 +496,229 @@ describe('the pipeline, end to end with a fake AI', () => {
 		assert.match(outcome.reason, /logo is missing/);
 		assert.equal(get('SELECT repairs FROM builds WHERE id = ?', outcome.buildId).repairs, 1);
 		assert.equal(runnerStatus(site), '');
+	});
+
+	test('production mode: the change is built where the site lives, the site restarted and checked', async () => {
+		const site = makeSite();
+		queueWinner();
+		const log = join(dirname(site.source), 'restarts.log');
+		const live = await startLiveSite(site, 'production');
+		try {
+			const outcome = await runCycle(config(site, 'ok', { deployMode: 'production', liveUrl: live.url, restartCommand: restarter(log) }), quiet);
+			assert.equal(outcome.status, 'live', JSON.stringify(outcome));
+			assert.equal(get('SELECT dry_run, status FROM builds WHERE id = ?', outcome.buildId).dry_run, 0);
+			assert.equal(existsSync(join(site.source, 'src/pages/garden.astro')), true);
+			assert.equal(existsSync(join(site.source, 'dist/ok')), true, 'the site was built in its own folder');
+			assert.equal(restarts(log), 1);
+			const lines = events(outcome.buildId);
+			assert.ok(lines.includes('deploy: building the site…'), lines.join('\n'));
+			assert.ok(lines.includes('deploy: restarting the site…'));
+			assert.ok(lines.some((line) => line.startsWith('smoke: the live site works ✓')));
+		} finally {
+			live.stop();
+		}
+	});
+
+	test('production mode: a change that breaks the restarted site is reverted, rebuilt and restarted again', async () => {
+		const site = makeSite();
+		queueWinner();
+		const log = join(dirname(site.source), 'restarts.log');
+		const live = await startLiveSite(site, 'production');
+		try {
+			const outcome = await runCycle(config(site, 'live-crash', { deployMode: 'production', liveUrl: live.url, restartCommand: restarter(log) }), quiet);
+			assert.equal(outcome.status, 'rolled_back', JSON.stringify(outcome));
+			assert.match(outcome.reason, /\/garden answered 500/);
+			assert.equal(restarts(log), 2, 'restarted for the change, and again for the revert');
+			assert.equal(existsSync(join(site.source, 'src/pages/garden.astro')), false);
+			const history = execFileSync('git', ['log', '-2', '--format=%s'], { cwd: site.source, encoding: 'utf8' }).trim().split('\n');
+			assert.match(history[0], /^revert: cycle \d+ broke the live site$/);
+			assert.ok(events(outcome.buildId).includes('rollback: the site works again ✓'), events(outcome.buildId).join('\n'));
+			assert.equal(get('SELECT status FROM builds WHERE id = ?', outcome.buildId).status, 'rolled_back');
+		} finally {
+			live.stop();
+		}
+	});
+
+	test('production mode: a site that is still down after its own rollback is reported as down, not as rolled back', async () => {
+		const site = makeSite();
+		queueWinner();
+		const log = join(dirname(site.source), 'restarts.log');
+		const live = await startLiveSite(site, 'production');
+		try {
+			const outcome = await runCycle(config(site, 'ok', { deployMode: 'production', liveUrl: live.url, restartCommand: restarter(log, 1) }), quiet);
+			assert.equal(outcome.status, 'failed', JSON.stringify(outcome));
+			assert.match(outcome.reason, /site is down after the rollback/);
+			const build = get('SELECT status, note FROM builds WHERE id = ?', outcome.buildId);
+			assert.equal(build.status, 'failed');
+			assert.equal(build.note, 'site down after rollback');
+			assert.ok(events(outcome.buildId).includes('failed: the site is not working: it needs a person'));
+			assert.equal(restarts(log), 2);
+		} finally {
+			live.stop();
+		}
+	});
+
+	test('production mode: a build that fails where the site lives is reverted, and the old site rebuilt and restarted', async () => {
+		const site = makeSite();
+		queueWinner();
+		const log = join(dirname(site.source), 'restarts.log');
+		const live = await startLiveSite(site, 'production');
+		// Passes in the runner, where the preview builds; fails in the site's own folder while the change is in it.
+		const buildCommand = [process.execPath, '-e', "const fs = require('node:fs'); process.exit(process.cwd().endsWith('site') && fs.existsSync('src/pages/garden.astro') ? 1 : 0)"];
+		try {
+			const outcome = await runCycle(config(site, 'ok', { deployMode: 'production', liveUrl: live.url, restartCommand: restarter(log), buildCommand }), quiet);
+			assert.equal(outcome.status, 'rolled_back', JSON.stringify(outcome));
+			assert.match(outcome.reason, /production build failed/);
+			assert.equal(restarts(log), 1, 'no restart for a build that failed; one for the rebuilt old site');
+			assert.equal(existsSync(join(site.source, 'src/pages/garden.astro')), false);
+			assert.ok(events(outcome.buildId).includes('rollback: the site works again ✓'), events(outcome.buildId).join('\n'));
+		} finally {
+			live.stop();
+		}
+	});
+
+	test('each shipped change is pushed when asked; a push that fails never fails the build', async () => {
+		const site = makeSite();
+		const remote = join(dirname(site.source), 'remote.git');
+		execFileSync('git', ['init', '-q', '--bare', '-b', 'main', remote]);
+		execFileSync('git', ['remote', 'add', 'origin', remote], { cwd: site.source });
+		queueWinner();
+		const log = join(dirname(site.source), 'restarts.log');
+		const live = await startLiveSite(site, 'production');
+		try {
+			const first = await runCycle(config(site, 'ok', { deployMode: 'production', liveUrl: live.url, restartCommand: restarter(log), pushAfterShip: true }), quiet);
+			assert.equal(first.status, 'live', JSON.stringify(first));
+			const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: site.source, encoding: 'utf8' }).trim();
+			assert.equal(execFileSync('git', ['--git-dir', remote, 'rev-parse', 'main'], { encoding: 'utf8' }).trim(), head);
+			assert.ok(events(first.buildId).some((line) => line.startsWith('git: pushed to origin')));
+
+			queueWinner();
+			// A different page from the first: writing the same one again would be no change at all.
+			const second = await runCycle(
+				config(site, 'slow', { deployMode: 'production', liveUrl: live.url, restartCommand: restarter(log), pushAfterShip: true, pushRemote: 'nowhere' }),
+				quiet,
+			);
+			assert.equal(second.status, 'live', 'a failed push leaves a working change in place');
+			assert.ok(events(second.buildId).some((line) => line.startsWith('git: could not push to nowhere')), events(second.buildId).join('\n'));
+		} finally {
+			live.stop();
+		}
+	});
+
+	test('configuration problems are caught before a single build starts', async () => {
+		const { configProblems, pipelineConfig, splitCommand } = await import('../scripts/pipeline/config.ts');
+		const base = pipelineConfig({ ANTHROPIC_API_KEY: 'x', RESTART_COMMAND: 'pm2 reload "theseus web"' });
+		assert.deepEqual(base.restartCommand, ['pm2', 'reload', 'theseus web']);
+		assert.deepEqual(splitCommand("a 'b c' d"), ['a', 'b c', 'd']);
+		assert.equal(splitCommand('   '), null);
+		assert.equal(splitCommand(undefined), null);
+
+		const ready = pipelineConfig({ DEPLOY_MODE: 'production', RESTART_COMMAND: 'pm2 reload site', AGENT_RUNTIME: 'sdk', ANTHROPIC_API_KEY: 'key' });
+		assert.equal(ready.deployMode, 'production');
+		assert.equal(ready.agentRuntime, 'sdk');
+		assert.deepEqual(configProblems(ready, { ANTHROPIC_API_KEY: 'key' }), []);
+
+		const noRestart = pipelineConfig({ DEPLOY_MODE: 'production', AGENT_RUNTIME: 'sdk' });
+		const problems = configProblems(noRestart, {});
+		assert.equal(problems.length, 2);
+		assert.match(problems.join('\n'), /needs RESTART_COMMAND/);
+		assert.match(problems.join('\n'), /needs ANTHROPIC_API_KEY/);
+
+		const noBrowser = pipelineConfig({ DEPLOY_MODE: 'production', RESTART_COMMAND: 'x', BROWSER_CHECK: 'off' });
+		assert.match(configProblems(noBrowser, {}).join('\n'), /needs the browser check/);
+
+		// A preview on a laptop needs none of it.
+		assert.deepEqual(configProblems(pipelineConfig({}), {}), []);
+		assert.equal(pipelineConfig({ DEPLOY_MODE: 'nonsense' }).deployMode, 'preview');
+	});
+
+	describe('the agent on the API', () => {
+		const usage = { input_tokens: 2000, output_tokens: 300, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 };
+		const turn = (stop_reason, content) => ({ stop_reason, content, usage });
+		const stub = (script) => {
+			let at = 0;
+			return { messages: { stream: () => ({ finalMessage: async () => script[Math.min(at++, script.length - 1)] }) } };
+		};
+		const sdk = (site, overrides = {}) => config(site, 'unused', { agentRuntime: 'sdk', model: 'claude-sonnet-5-5', ...overrides });
+
+		test('builds a page that then goes through every check, and the spend is recorded', async () => {
+			const { setSdkClientForTests } = await import('../scripts/pipeline/sdk-agent.ts');
+			const { costUsd } = await import('../src/core/ai/pricing.ts');
+			const site = makeSite();
+			queueWinner();
+			setSdkClientForTests(
+				stub([
+					turn('tool_use', [{ type: 'tool_use', id: 't1', name: 'write_file', input: { path: 'src/pages/garden.astro', content: '---\nconst a = 1;\n---\n<main><h1>A garden</h1></main>\n' } }]),
+					turn('end_turn', [{ type: 'text', text: 'Built a garden page.' }]),
+				]),
+			);
+			try {
+				const outcome = await runCycle(sdk(site), quiet);
+				assert.equal(outcome.status, 'live', JSON.stringify(outcome));
+				assert.deepEqual(JSON.parse(get('SELECT files FROM builds WHERE id = ?', outcome.buildId).files), ['src/pages/garden.astro']);
+				assert.ok(events(outcome.buildId).includes('ai: wrote src/pages/garden.astro'), events(outcome.buildId).join('\n'));
+				const spend = get("SELECT model, cost_usd, num_turns FROM ai_spend WHERE build_id = ? AND kind = 'implement'", outcome.buildId);
+				assert.equal(spend.model, 'claude-sonnet-5-5');
+				assert.equal(spend.num_turns, 2);
+				assert.ok(Math.abs(spend.cost_usd - 2 * costUsd('claude-sonnet-5-5', usage)) < 1e-9);
+				assert.equal(runnerStatus(site), '');
+			} finally {
+				setSdkClientForTests(null);
+			}
+		});
+
+		test('an agent that goes for the core changes nothing, and the build says so', async () => {
+			const { setSdkClientForTests } = await import('../scripts/pipeline/sdk-agent.ts');
+			const site = makeSite();
+			queueWinner();
+			setSdkClientForTests(
+				stub([
+					turn('tool_use', [{ type: 'tool_use', id: 't1', name: 'write_file', input: { path: 'src/core/votes.ts', content: 'export const MAX = 300;\n' } }]),
+					turn('end_turn', [{ type: 'text', text: 'Could not.' }]),
+				]),
+			);
+			try {
+				const outcome = await runCycle(sdk(site), quiet);
+				assert.equal(outcome.status, 'failed');
+				assert.ok(events(outcome.buildId).includes('guard: ✗ no changes were made'), events(outcome.buildId).join('\n'));
+				assert.equal(readFileSync(join(site.runner, 'src/core/votes.ts'), 'utf8'), 'export const MAX = 3;\n');
+				assert.equal(runnerStatus(site), '');
+			} finally {
+				setSdkClientForTests(null);
+			}
+		});
+
+		test('without a key the build fails clearly and costs nothing', async () => {
+			const site = makeSite();
+			queueWinner();
+			const saved = process.env.ANTHROPIC_API_KEY;
+			delete process.env.ANTHROPIC_API_KEY;
+			try {
+				const outcome = await runCycle(sdk(site), quiet);
+				assert.equal(outcome.status, 'failed');
+				assert.match(outcome.reason, /ANTHROPIC_API_KEY is not set/);
+				assert.equal(get('SELECT cost_usd FROM builds WHERE id = ?', outcome.buildId).cost_usd, 0);
+			} finally {
+				if (saved !== undefined) process.env.ANTHROPIC_API_KEY = saved;
+			}
+		});
+
+		test('the budget of one build is enforced on the API agent too', async () => {
+			const { setSdkClientForTests } = await import('../scripts/pipeline/sdk-agent.ts');
+			const site = makeSite();
+			queueWinner();
+			const dear = { ...usage, input_tokens: 800_000 };
+			setSdkClientForTests({
+				messages: { stream: () => ({ finalMessage: async () => ({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id: 'x', name: 'list_files', input: {} }], usage: dear }) }) },
+			});
+			try {
+				const outcome = await runCycle(sdk(site, { perRunBudgetUsd: 1 }), quiet);
+				assert.equal(outcome.status, 'failed');
+				assert.match(outcome.reason, /budget of \$1\.00 ran out/);
+			} finally {
+				setSdkClientForTests(null);
+			}
+		});
 	});
 
 	test('over the monthly budget: the winner is skipped as budget', async () => {

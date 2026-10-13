@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { isAbsolute, join, relative } from 'node:path';
 import type { PipelineConfig } from './config';
 import { run } from './proc';
+import { runSdkAgent } from './sdk-agent';
 
 export type AgentResult = {
 	ok: boolean;
@@ -124,6 +125,8 @@ export async function runAgent(input: {
 	onEvent?: (message: string) => void;
 }): Promise<AgentResult> {
 	const { config, cwd } = input;
+	// On a server there is no signed-in Claude Code: the agent runs on the API with a key.
+	if (config.agentRuntime === 'sdk') return runSdkAgent(input);
 	const dir = mkdtempSync(join(tmpdir(), 'pw-claude-'));
 	const settingsFile = join(dir, 'settings.json');
 	writeFileSync(settingsFile, JSON.stringify(claudeSettings(config)));

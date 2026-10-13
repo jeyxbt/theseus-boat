@@ -28,3 +28,7 @@ data/
 
 .DS_Store
 .idea/
+
+# Server setup and plans are kept outside the repository
+/deploy/
+/plans/

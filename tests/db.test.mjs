@@ -7,7 +7,6 @@ useTempDatabase('db');
 const { getDb, get, all, run, nowIso } = await import('../src/core/db/client.ts');
 const { default: sqliteSessions } = await import('../src/core/db/session-driver.ts');
 const { sweep } = await import('../src/core/db/maintenance.ts');
-const { seedDemo } = await import('../src/core/db/seed.ts');
 const { currentWindow } = await import('../src/core/cycle/windows.ts');
 
 const castVote = (userId, ideaId) =>
@@ -127,52 +126,3 @@ describe('sessions', () => {
 	});
 });
 
-describe('demo seed', () => {
-	test('fills ideas, votes and builds', () => {
-		const result = seedDemo();
-		assert.equal(result.ideas, 6);
-		assert.equal(result.builds, 6);
-		assert.ok(result.votes > 0);
-		assert.equal(get("SELECT count(*) AS n FROM builds WHERE status = 'building'").n, 1);
-		assert.ok(get('SELECT count(*) AS n FROM build_events').n > 0);
-	});
-
-	test('respects the voting rules: at most 3 votes each, never for your own idea', () => {
-		const maxPerUser = get('SELECT max(n) AS m FROM (SELECT count(*) AS n FROM votes GROUP BY user_id)').m;
-		assert.ok(maxPerUser <= 3);
-		const selfVotes = get('SELECT count(*) AS n FROM votes v JOIN ideas i ON i.id = v.idea_id WHERE i.user_id = v.user_id').n;
-		assert.equal(selfVotes, 0);
-	});
-
-	test('running it again replaces demo rows instead of duplicating them', () => {
-		const before = get('SELECT count(*) AS n FROM ideas').n;
-		seedDemo();
-		assert.equal(get('SELECT count(*) AS n FROM ideas').n, before);
-		assert.equal(get('SELECT count(*) AS n FROM builds').n, 6);
-	});
-
-	test('re-seeding after a window closes keeps that window’s winner', async () => {
-		const { closeWindowNow, lastClosedWindow } = await import('../src/core/cycle/windows.ts');
-		seedDemo();
-		closeWindowNow();
-		const winner = lastClosedWindow();
-		assert.ok(winner.winnerText, 'the demo board has a winner');
-
-		seedDemo();
-		const after = lastClosedWindow();
-		assert.equal(after.id, winner.id);
-		assert.equal(after.winnerText, winner.winnerText);
-		assert.equal(get("SELECT status FROM ideas WHERE id = ?", winner.winnerIdeaId).status, 'won');
-		assert.equal(get("SELECT count(*) AS n FROM ideas WHERE status = 'open'").n >= 6, true);
-	});
-
-	test('leaves real people alone', () => {
-		const real = get(
-			"INSERT INTO users (provider, provider_id, handle, created_at) VALUES ('github', '777', 'real', ?) RETURNING id",
-			nowIso(),
-		).id;
-		makeIdea(real, 'An idea from a real person, not a demo');
-		seedDemo();
-		assert.equal(get('SELECT count(*) AS n FROM ideas WHERE user_id = ?', real).n, 1);
-	});
-});

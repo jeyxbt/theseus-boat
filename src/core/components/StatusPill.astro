@@ -1,5 +1,5 @@
 ---
-import { dryRunLabel, isStale, latestBuild } from '../builds/queries';
+import { DRY_RUN_LABEL, isStale, latestBuild } from '../builds/queries';
 import type { BuildStatus } from '../db/schema';
 import { pad3 } from '../format';
 
@@ -32,7 +32,7 @@ const text = build
 	? stale
 		? `Cycle ${cycle} stalled`
 		: dryRun
-			? `Cycle ${cycle}: ${dryRunLabel(build.note).toLowerCase()}`
+			? `Cycle ${cycle}: ${DRY_RUN_LABEL.toLowerCase()}`
 			: (TEXT[build.status] ?? `Cycle ${cycle}`)
 	: null;
 const dot = build ? (stale ? 'bg-accent-soft' : dryRun ? 'bg-fog' : (DOT[build.status] ?? 'bg-fog')) : '';

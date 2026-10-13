@@ -73,14 +73,14 @@ export async function checkRoutes(
 }
 
 /** The environment for code the AI wrote: enough to run node, and none of our secrets. */
-function sandboxEnv(extra: Record<string, string>): NodeJS.ProcessEnv {
+export function sandboxEnv(extra: Record<string, string>): NodeJS.ProcessEnv {
 	const keep = ['PATH', 'SystemRoot', 'windir', 'TEMP', 'TMP', 'HOME', 'USERPROFILE', 'LANG', 'TZ'];
 	const env: NodeJS.ProcessEnv = { NODE_ENV: 'production' };
 	for (const name of keep) if (process.env[name]) env[name] = process.env[name];
 	return { ...env, ...extra };
 }
 
-async function waitForHealth(base: string, timeoutMs: number, alive: () => boolean) {
+export async function waitForHealth(base: string, timeoutMs: number, alive: () => boolean) {
 	const until = Date.now() + timeoutMs;
 	while (Date.now() < until) {
 		if (!alive()) return false;

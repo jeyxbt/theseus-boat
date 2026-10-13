@@ -89,9 +89,3 @@ export function fenceIdea(text: string) {
 		.replaceAll(/[\u0000-\u0008\u000B-\u001F\u007F]/g, ' ');
 	return `<<<IDEA\n${clean}\nIDEA>>>`;
 }
-
-/** Per-million-token prices, for recording what an API call cost. */
-export const PRICES: Record<string, { input: number; output: number }> = {
-	'claude-haiku-5-5': { input: 0.1, output: 0.5 },
-	'claude-sonnet-5-5': { input: 2, output: 10 },
-};

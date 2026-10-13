@@ -38,7 +38,7 @@ export function listClosedWindows(limit = 500) {
 	return all<ClosedWindow>(`${CLOSED} ORDER BY w.number DESC LIMIT ?`, limit);
 }
 
-/** The next public cycle number. Continues after builds that exist without a window (demo data). */
+/** The next public cycle number: after every window and every build, so numbers never collide. */
 function nextNumber() {
 	const row = get<{ n: number }>(
 		`SELECT max(coalesce((SELECT max(number) FROM windows), 0), coalesce((SELECT max(cycle) FROM builds), 0)) AS n`,

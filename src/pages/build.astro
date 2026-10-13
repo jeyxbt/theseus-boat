@@ -1,11 +1,10 @@
 ---
-import { buildByCycle, buildEvents, dryRunLabel, isActive, isStale, latestBuild, listBuilds, stepStates } from '../core/builds/queries';
+import { buildByCycle, buildEvents, DRY_RUN_LABEL, isActive, isStale, latestBuild, listBuilds, stepStates } from '../core/builds/queries';
 import type { BuildStatus } from '../core/db/schema';
 import { currentWindow } from '../core/cycle/windows';
 import BuildLog from '../core/components/BuildLog.astro';
 import BuildSteps from '../core/components/BuildSteps.astro';
 import BuildsTable from '../core/components/BuildsTable.astro';
-import DemoBadge from '../core/components/DemoBadge.astro';
 import Shell from '../core/components/Shell.astro';
 import { duration, hourMinute, pad3 } from '../core/format';
 import { intIn } from '../core/http/api';
@@ -19,8 +18,7 @@ const states = build ? stepStates(build.status, events.map((event) => event.tag)
 const recent = listBuilds(8);
 const stale = build ? isStale(build) : false;
 const live = build ? isActive(build.status) && !stale : false;
-// Demo builds are frozen "in progress": no stream to follow.
-const follow = live && build && !build.isDemo;
+const follow = live && build;
 const nextClose = currentWindow();
 
 const elapsed = build
@@ -43,7 +41,7 @@ const status = build
 	? stale
 		? { label: 'Stalled', bg: 'bg-accent-soft', pulse: false }
 		: build.dryRun && build.status === 'live'
-			? { label: dryRunLabel(build.note), bg: 'bg-fog', pulse: false }
+			? { label: DRY_RUN_LABEL, bg: 'bg-fog', pulse: false }
 			: (STATUS[build.status] ?? { label: build.status, bg: 'bg-fog', pulse: false })
 	: null;
 ---
@@ -80,7 +78,6 @@ const status = build
 								Cycle {pad3(build.cycle)} · started {hourMinute(build.startedAt)} · {elapsed}{' '}
 								{live ? 'elapsed' : 'total'}
 							</span>
-							{build.isDemo && <DemoBadge dark />}
 						</div>
 						<h1 class="h-display m-0 max-w-[1100px] text-white" style="font-size: clamp(40px, 6.2vw, 92px)">
 							“{headStart && `${headStart} `}

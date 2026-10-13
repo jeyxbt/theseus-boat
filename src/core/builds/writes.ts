@@ -130,7 +130,7 @@ export function finishBuild(buildId: number, outcome: BuildOutcome) {
 export function failInterruptedBuilds(quietMs: number, now = Date.now()) {
 	const cutoff = new Date(now - quietMs).toISOString();
 	const stuck = all<{ id: number }>(
-		`SELECT id FROM builds WHERE status IN ('building', 'repairing') AND is_demo = 0
+		`SELECT id FROM builds WHERE status IN ('building', 'repairing')
 		 AND coalesce(heartbeat_at, started_at) < ?`,
 		cutoff,
 	);

@@ -1,5 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { PRICES, type ModerationProvider } from './types';
+import { costUsd as priceOf } from '../ai/pricing';
+import { workspaceParam } from '../ai/workspace';
+import type { ModerationProvider } from './types';
 
 /** Moderation through the Messages API, with an API key (ANTHROPIC_API_KEY). */
 
@@ -20,21 +22,22 @@ export const apiProvider: ModerationProvider = async (call) => {
 	const response = await getClient().messages.create(
 		{
 			model: call.model,
-			max_tokens: 2048,
+			// Thinking tokens count against this too; the verdict itself is a few dozen.
+			max_tokens: 8192,
 			system: call.system,
 			messages: [{ role: 'user', content: call.user }],
 			output_config: {
 				effort: call.effort,
 				format: { type: 'json_schema', schema: call.schema },
 			},
+			...workspaceParam(),
 		},
 		{ timeout: call.timeoutMs },
 	);
 
-	const price = PRICES[call.model];
 	const input = response.usage?.input_tokens ?? 0;
 	const output = response.usage?.output_tokens ?? 0;
-	const costUsd = price ? (input * price.input + output * price.output) / 1_000_000 : 0;
+	const costUsd = priceOf(call.model, response.usage);
 
 	// A decline is an answer too: the model would not even look at this idea.
 	if (response.stop_reason === 'refusal') {

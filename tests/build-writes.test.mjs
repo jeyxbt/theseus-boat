@@ -126,13 +126,12 @@ describe('spend', () => {
 });
 
 describe('stale builds', () => {
-	test('a running build that stopped reporting is stale; demo and finished ones never are', () => {
+	test('a running build that stopped reporting is stale; a recent or a finished one never is', () => {
 		const now = Date.now();
 		const old = new Date(now - STALE_AFTER_MS - 1000).toISOString();
 		const fresh = new Date(now - 1000).toISOString();
-		assert.equal(isStale({ status: 'building', heartbeatAt: old, startedAt: old, isDemo: false }, now), true);
-		assert.equal(isStale({ status: 'repairing', heartbeatAt: fresh, startedAt: old, isDemo: false }, now), false);
-		assert.equal(isStale({ status: 'building', heartbeatAt: old, startedAt: old, isDemo: true }, now), false);
-		assert.equal(isStale({ status: 'live', heartbeatAt: old, startedAt: old, isDemo: false }, now), false);
+		assert.equal(isStale({ status: 'building', heartbeatAt: old, startedAt: old }, now), true);
+		assert.equal(isStale({ status: 'repairing', heartbeatAt: fresh, startedAt: old }, now), false);
+		assert.equal(isStale({ status: 'live', heartbeatAt: old, startedAt: old }, now), false);
 	});
 });

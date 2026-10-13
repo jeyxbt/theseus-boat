@@ -181,6 +181,30 @@ describe('the API provider (a stand-in SDK client)', () => {
 		assert.equal(options.timeout, 15_000);
 	});
 
+	test('a key that is not scoped to a workspace names it; a scoped key sends nothing extra', async () => {
+		const answer = { stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify({ verdict: 'allow', category: 'none', reason: 'ok' }) }], usage: { input_tokens: 1, output_tokens: 1 } };
+		const saved = process.env.ANTHROPIC_WORKSPACE_ID;
+		try {
+			delete process.env.ANTHROPIC_WORKSPACE_ID;
+			let calls = client(answer);
+			await api(() => reviewIdea('A guestbook', 'submit'));
+			assert.equal('workspace_id' in calls[0].params, false);
+
+			process.env.ANTHROPIC_WORKSPACE_ID = '  wrkspc_01ABC  ';
+			calls = client(answer);
+			await api(() => reviewIdea('A guestbook', 'submit'));
+			assert.equal(calls[0].params.workspace_id, 'wrkspc_01ABC');
+
+			process.env.ANTHROPIC_WORKSPACE_ID = '   ';
+			calls = client(answer);
+			await api(() => reviewIdea('A guestbook', 'submit'));
+			assert.equal('workspace_id' in calls[0].params, false, 'a blank value sends nothing');
+		} finally {
+			if (saved === undefined) delete process.env.ANTHROPIC_WORKSPACE_ID;
+			else process.env.ANTHROPIC_WORKSPACE_ID = saved;
+		}
+	});
+
 	test('a refusal is a rejection; a cut-off answer is "unavailable"', async () => {
 		client({ stop_reason: 'refusal', stop_details: { category: 'general_harms' }, content: [], usage: { input_tokens: 5, output_tokens: 0 } });
 		assert.equal((await api(() => reviewIdea('x', 'final'))).status, 'reject');

@@ -20,8 +20,19 @@ function defaultClaudeCommand(env: NodeJS.ProcessEnv) {
  * runner, never touch the live site (the dry run).
  * local: also fast-forward the site's own repository to the new commit, check
  * the running dev server, and revert the commit if the site broke.
+ * production: like local, for a server that runs a production build: after the
+ * fast-forward the site is built and restarted, checked, and if it broke the
+ * commit is reverted and the site rebuilt and restarted.
  */
-export type DeployMode = 'preview' | 'local';
+export type DeployMode = 'preview' | 'local' | 'production';
+
+/** Splits "pm2 reload theseus-web" into arguments. Quotes group words; there is no shell, so nothing else is special. */
+export function splitCommand(text: string | undefined): string[] | null {
+	if (!text || !text.trim()) return null;
+	const parts: string[] = [];
+	for (const match of text.matchAll(/"([^"]*)"|'([^']*)'|(\S+)/g)) parts.push(match[1] ?? match[2] ?? match[3]);
+	return parts.length > 0 ? parts : null;
+}
 
 export type PipelineConfig = {
 	/** The site's repository. The pipeline never edits it directly. */
@@ -29,6 +40,18 @@ export type PipelineConfig = {
 	/** A separate clone where the AI works, so a running dev server never sees half a change. */
 	runnerDir: string;
 	deployMode: DeployMode;
+	/**
+	 * What runs the build agent. 'cli' is Claude Code, headless (a signed-in
+	 * subscription on a laptop). 'sdk' is the Messages API with ANTHROPIC_API_KEY
+	 * and the tools in sandbox.ts: the way to run on a server.
+	 */
+	agentRuntime: 'cli' | 'sdk';
+	/** Effort of the 'sdk' agent. Higher costs more and thinks longer. */
+	agentEffort: 'low' | 'medium' | 'high';
+	/** Most model turns one 'sdk' run may take. */
+	agentMaxTurns: number;
+	/** Largest single reply of the 'sdk' agent, in tokens. */
+	agentMaxOutputTokens: number;
 	/** Command that runs Claude Code; the pipeline appends its own flags. */
 	claudeCommand: string[];
 	/** 'oauth' runs with --safe-mode (a logged-in subscription); 'api-key' with --bare. */
@@ -56,7 +79,30 @@ export type PipelineConfig = {
 	liveUrl: string;
 	/** How long the live site gets to pick up a change before a failing page counts. */
 	liveSettleMs: number;
+	/** Production mode: restarts the site on the new build, like ["pm2", "reload", "theseus-web"]. */
+	restartCommand: string[] | null;
+	/** Production mode: how long the restarted site gets to answer. */
+	restartTimeoutMs: number;
+	/** Push each shipped change (and each revert) to the remote. A failed push never fails the build. */
+	pushAfterShip: boolean;
+	pushRemote: string;
 };
+
+/** Why this configuration can't run, as a list; empty when it can. */
+export function configProblems(config: PipelineConfig, env: NodeJS.ProcessEnv = process.env) {
+	const problems: string[] = [];
+	if (config.deployMode === 'production' && !config.restartCommand) {
+		problems.push('DEPLOY_MODE=production needs RESTART_COMMAND, like "pm2 reload theseus-web", so the site picks up each build');
+	}
+	if (config.deployMode === 'production' && config.browserCheck === 'off') {
+		problems.push('DEPLOY_MODE=production needs the browser check: remove BROWSER_CHECK=off');
+	}
+	if (config.agentRuntime === 'sdk' && !env.ANTHROPIC_API_KEY) problems.push('AGENT_RUNTIME=sdk needs ANTHROPIC_API_KEY');
+	if (config.agentRuntime === 'cli' && config.claudeAuth === 'api-key' && !env.ANTHROPIC_API_KEY) {
+		problems.push('CLAUDE_AUTH=api-key needs ANTHROPIC_API_KEY');
+	}
+	return problems;
+}
 
 const num = (value: string | undefined, fallback: number) => {
 	const parsed = Number(value);
@@ -72,7 +118,11 @@ export function pipelineConfig(env: NodeJS.ProcessEnv = process.env): PipelineCo
 		sourceDir,
 		// Outside the site's folder: the AI is denied reading anything in there.
 		runnerDir: resolve(env.RUNNER_DIR ?? join(dirname(dirname(sourceDir)), 'pw-runner')),
-		deployMode: env.DEPLOY_MODE === 'local' ? 'local' : 'preview',
+		deployMode: env.DEPLOY_MODE === 'local' || env.DEPLOY_MODE === 'production' ? env.DEPLOY_MODE : 'preview',
+		agentRuntime: env.AGENT_RUNTIME === 'sdk' ? 'sdk' : 'cli',
+		agentEffort: env.AGENT_EFFORT === 'low' || env.AGENT_EFFORT === 'high' ? env.AGENT_EFFORT : 'medium',
+		agentMaxTurns: num(env.AGENT_MAX_TURNS, 60),
+		agentMaxOutputTokens: num(env.AGENT_MAX_OUTPUT_TOKENS, 32_000),
 		claudeCommand: [defaultClaudeCommand(env)],
 		claudeAuth: env.CLAUDE_AUTH === 'api-key' ? 'api-key' : 'oauth',
 		model: env.CLAUDE_MODEL ?? 'claude-sonnet-5-5',
@@ -91,5 +141,9 @@ export function pipelineConfig(env: NodeJS.ProcessEnv = process.env): PipelineCo
 		browserCheck: env.BROWSER_CHECK === 'off' ? 'off' : 'required',
 		liveUrl: (env.LIVE_URL ?? env.SITE_URL ?? 'http://127.0.0.1:4321').replace(/\/+$/, ''),
 		liveSettleMs: num(env.LIVE_SETTLE_MS, 20 * 1000),
+		restartCommand: splitCommand(env.RESTART_COMMAND),
+		restartTimeoutMs: num(env.RESTART_TIMEOUT_MS, 60 * 1000),
+		pushAfterShip: env.GIT_PUSH === '1' || env.GIT_PUSH === 'true',
+		pushRemote: env.GIT_REMOTE || 'origin',
 	};
 }

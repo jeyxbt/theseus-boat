@@ -6,8 +6,9 @@
  *
  * In preview mode (the dry run) nothing reaches the live site: the commit stays
  * in the runner. In local mode it is applied to the site's own repository and
- * the running site is checked; a change that breaks it is reverted. Nothing is
- * ever pushed from here.
+ * the running dev server is checked. In production mode it is applied, built,
+ * the site restarted and checked in a browser. A change that breaks the live
+ * site is reverted. With GIT_PUSH=1 every shipped change and revert is pushed.
  */
 import { existsSync, readdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
@@ -33,7 +34,7 @@ import { buildAndSmoke, type Failure } from './deploy';
 import { reviewWorkingTree, secretValuesFrom } from './guards';
 import { acquireLock } from './lock';
 import { buildPrompt, commitMessage, repairPrompt, type Winner } from './prompt';
-import { applyToSite, checkLive, liveState, revertOnSite } from './release';
+import { applyToSite, checkLive, liveState, publishProduction, pushSite, revertOnSite } from './release';
 import { discardChanges, git, prepareRunner, snapshotDatabase } from './runner';
 
 type SkipReason = 'paused' | 'already_built' | 'budget' | 'final_gate' | 'moderation_unavailable';
@@ -259,16 +260,24 @@ async function build(
 			}
 			log('deploy', 'applied to the site');
 
-			const state = await liveState(config.liveUrl);
-			if (state === 'down') {
-				log('deploy', `nothing answers at ${config.liveUrl}: the change shows when the site starts`);
-			} else if (state === 'production') {
-				log('deploy', `${config.liveUrl} runs a production build: rebuild and restart it to show the change`);
-			} else {
-				const broken = await checkLive(config, review.files);
+			if (config.deployMode === 'production') {
+				// A production build serves the old code until it is rebuilt and restarted: do both, then look.
+				const broken = await publishProduction(config, review.files, log);
 				if (broken) return rollBack(config, buildId, winner, sha, broken, changed, env, log);
-				log('smoke', 'the live site works ✓');
+				log('smoke', 'the live site works ✓ (restarted, checked in a browser)');
+			} else {
+				const state = await liveState(config.liveUrl);
+				if (state === 'down') {
+					log('deploy', `nothing answers at ${config.liveUrl}: the change shows when the site starts`);
+				} else if (state === 'production') {
+					log('deploy', `${config.liveUrl} runs a production build: rebuild and restart it to show the change`);
+				} else {
+					const broken = await checkLive(config, review.files);
+					if (broken) return rollBack(config, buildId, winner, sha, broken, changed, env, log);
+					log('smoke', 'the live site works ✓');
+				}
 			}
+			pushIfAsked(config, sha, log);
 		}
 		log('live', `cycle ${String(winner.number).padStart(3, '0')} ${dryRun ? 'passed the dry run' : 'shipped'}`);
 		finishBuild(buildId, {
@@ -314,8 +323,16 @@ async function rollBack(
 		finishBuild(buildId, { status: 'failed', note: 'rollback failed', error: `${broken.reason}\n${message}`, ...changed });
 		return { status: 'failed', buildId, reason: `rollback failed: ${message}` };
 	}
-	const after = await checkLive(config, []);
+	// The old code has to be built and running again, not just back in the files.
+	const after = config.deployMode === 'production' ? await publishProduction(config, [], log) : await checkLive(config, []);
 	log('rollback', after ? `the site still fails after the rollback: ${after.reason}` : 'the site works again ✓');
+	if (after && config.deployMode === 'production') {
+		// A site that is down after its own rollback needs a person: say so, don't call it rolled back.
+		log('failed', 'the site is not working: it needs a person');
+		finishBuild(buildId, { status: 'failed', note: 'site down after rollback', error: `${broken.reason}\n${after.reason}\n${after.details}`, ...changed });
+		return { status: 'failed', buildId, reason: `the site is down after the rollback: ${after.reason}` };
+	}
+	pushIfAsked(config, changed.commitSha, log);
 	finishBuild(buildId, {
 		status: 'rolled_back',
 		note: 'broke the live site',
@@ -323,4 +340,11 @@ async function rollBack(
 		...changed,
 	});
 	return { status: 'rolled_back', buildId, reason: broken.reason };
+}
+
+/** Sends the site's history to the remote when that is switched on. The log says whether it worked. */
+function pushIfAsked(config: PipelineConfig, sha: string, log: (tag: string, message: string) => void) {
+	if (!config.pushAfterShip) return;
+	const failed = pushSite(config);
+	log('git', failed ? `could not push to ${config.pushRemote}: ${failed}` : `pushed to ${config.pushRemote} (${sha})`);
 }

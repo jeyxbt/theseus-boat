@@ -1,6 +1,7 @@
 import { defineMiddleware } from 'astro:middleware';
 import { tickWindows } from './core/cycle/windows';
 import { reviewPending } from './core/moderation/board';
+import { readiness } from './core/production';
 
 /** How often the server checks whether the voting window is due to close. */
 const TICK_MS = 15_000;
@@ -56,7 +57,19 @@ const CSP = [
 	"object-src 'none'",
 ].join('; ');
 
+/** A site on a real domain with a wrong setup says so, loudly, once. `pnpm preflight` is the same check before starting. */
+let checkedSetup = false;
+function sayIfSetupIsWrong() {
+	if (checkedSetup) return;
+	checkedSetup = true;
+	if (!import.meta.env.PROD) return;
+	const { problems, warnings } = readiness();
+	for (const problem of problems) console.error(`[setup] ${problem}`);
+	for (const warning of warnings) console.warn(`[setup] ${warning}`);
+}
+
 export const onRequest = defineMiddleware(async (_context, next) => {
+	sayIfSetupIsWrong();
 	keepCycleMoving();
 	const response = await next();
 
