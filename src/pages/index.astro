@@ -30,6 +30,21 @@ const latestEvents = latest ? buildLog(latest.id) : [];
 
 <Shell>
 	<main>
+	<section class="welcome border-b-2 border-ink bg-sun" aria-label="Welcome">
+		<div class="wrap flex flex-wrap items-center justify-between gap-4 py-5">
+			<p class="m-0 font-display text-2xl font-extrabold tracking-[-0.02em] sm:text-3xl">
+				<span id="welcome-greeting">Welcome</span><span class="welcome-wave">, friend.</span>
+			</p>
+			<p class="m-0 font-mono text-sm">You are early. Pull up a chair and shape the site.</p>
+		</div>
+		<div class="welcome-dots wrap flex gap-2 pb-4" aria-hidden="true">
+			<span class="welcome-dot bg-ink"></span>
+			<span class="welcome-dot bg-accent"></span>
+			<span class="welcome-dot bg-blue"></span>
+			<span class="welcome-dot bg-ink"></span>
+			<span class="welcome-dot bg-accent"></span>
+		</div>
+	</section>
 	<section id="top" class="wrap flex flex-wrap items-stretch gap-12 pt-[72px] pb-14">
 		<div class="flex min-w-0 flex-[999_1_560px] flex-col gap-7">
 			<p class="eyebrow m-0">{window ? `Cycle ${pad3(window.number)} · open for ideas` : 'Open for ideas'}</p>
@@ -199,3 +214,44 @@ const latestEvents = latest ? buildLog(latest.id) : [];
 	</section>
 	</main>
 </Shell>
+
+<style>
+	.welcome-wave {
+		display: inline-block;
+		animation: welcome-in 0.8s ease-out both;
+	}
+	#welcome-greeting {
+		display: inline-block;
+		animation: welcome-in 0.6s ease-out both;
+	}
+	.welcome-dot {
+		display: block;
+		width: 14px;
+		height: 14px;
+		border: 2px solid #111111;
+		animation: welcome-bounce 1.2s ease-in-out infinite;
+	}
+	.welcome-dot:nth-child(2) { animation-delay: 0.1s; }
+	.welcome-dot:nth-child(3) { animation-delay: 0.2s; }
+	.welcome-dot:nth-child(4) { animation-delay: 0.3s; }
+	.welcome-dot:nth-child(5) { animation-delay: 0.4s; }
+	@keyframes welcome-in {
+		from { opacity: 0; transform: translateY(14px); }
+		to { opacity: 1; transform: none; }
+	}
+	@keyframes welcome-bounce {
+		0%, 100% { transform: translateY(0); }
+		50% { transform: translateY(-8px); }
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.welcome-wave, #welcome-greeting, .welcome-dot { animation: none; }
+	}
+</style>
+
+<script>
+	const hour = new Date().getHours();
+	const el = document.getElementById('welcome-greeting');
+	if (el) {
+		el.textContent = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+	}
+</script>
