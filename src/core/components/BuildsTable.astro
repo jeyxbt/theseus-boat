@@ -1,6 +1,7 @@
 ---
 import type { CycleStatus } from '../cycle/history';
 import { pad3, shortDate } from '../format';
+import { commitUrl } from '../site';
 import ResultChip from './ResultChip.astro';
 
 type Row = {
@@ -85,7 +86,13 @@ const head = 'px-[18px] py-3.5 text-left font-mono text-[12px] font-medium track
 							</td>
 						)}
 						<td class:list={['border-b px-[18px] py-4 font-mono', line, !build.commitSha && 'text-dim']}>
-							{build.commitSha ?? '—'}
+							{commitUrl(build.commitSha) ? (
+								<a href={commitUrl(build.commitSha)} class="underline-offset-4 hover:underline" target="_blank" rel="noopener noreferrer">
+									{build.commitSha}
+								</a>
+							) : (
+								build.commitSha ?? '—'
+							)}
 						</td>
 					</tr>
 				))

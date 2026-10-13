@@ -8,6 +8,7 @@ import BuildsTable from '../core/components/BuildsTable.astro';
 import Shell from '../core/components/Shell.astro';
 import { duration, hourMinute, pad3 } from '../core/format';
 import { intIn } from '../core/http/api';
+import { commitUrl } from '../core/site';
 
 const requested = intIn(Astro.url.searchParams.get('cycle'), 1, 100000);
 const build = requested ? buildByCycle(requested) : latestBuild();
@@ -132,7 +133,20 @@ const status = build
 									<p class="m-0 text-silver">No files were kept: the site went back to the last working version.</p>
 								)}
 								<p class="m-0 font-semibold text-accent-soft">
-									{build.commitSha ? `Published as commit ${build.commitSha}` : 'The commit appears once the build is live.'}
+									{build.commitSha ? (
+										<>
+											Published as commit{' '}
+											{commitUrl(build.commitSha) ? (
+												<a href={commitUrl(build.commitSha)} class="underline underline-offset-4" target="_blank" rel="noopener noreferrer">
+													{build.commitSha}
+												</a>
+											) : (
+												build.commitSha
+											)}
+										</>
+									) : (
+										'The commit appears once the build is live.'
+									)}
 								</p>
 							</section>
 							<section aria-label="Safety net" class="flex flex-col gap-2.5 border-2 border-sun bg-sun p-6 text-ink">

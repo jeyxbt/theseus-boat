@@ -1,6 +1,7 @@
 ---
 import type { Build } from '../db/schema';
 import { pad3 } from '../format';
+import { commitUrl } from '../site';
 
 interface Props {
 	build: Build;
@@ -10,6 +11,7 @@ interface Props {
 
 const { build, index } = Astro.props;
 const art = index % 3;
+const commit = commitUrl(build.commitSha);
 const pixels = ['#FFD23F', '#FFFFFF', '#FF5B1F', '#FFFFFF', '#FFD23F', '#111111', '#FFFFFF', '#FF5B1F', '#111111', '#FF5B1F', '#FFFFFF', '#FFD23F', '#111111', '#FFFFFF', '#FF5B1F', '#FFD23F', '#FFFFFF', '#FFD23F', '#111111', '#FF5B1F', '#FFFFFF', '#FFD23F', '#111111', '#FFFFFF'];
 ---
 
@@ -51,7 +53,11 @@ const pixels = ['#FFD23F', '#FFFFFF', '#FF5B1F', '#FFFFFF', '#FFD23F', '#111111'
 		</h3>
 		<p class="m-0 text-[15px] text-muted">Proposed by @{build.authorHandle}</p>
 		<div class="mt-auto flex justify-between border-t border-dashed border-silver pt-3 font-mono text-[13px] text-muted">
-			<span>{build.commitSha ?? '—'}</span>
+			{commit ? (
+				<a href={commit} class="hover:text-ink" target="_blank" rel="noopener noreferrer">{build.commitSha}</a>
+			) : (
+				<span>{build.commitSha ?? '—'}</span>
+			)}
 			<span>+{build.linesAdded} −{build.linesRemoved}</span>
 		</div>
 	</div>
