@@ -16,6 +16,15 @@ export default defineConfig({
 	},
 	// No image optimisation: passthrough keeps /_image inert and drops sharp.
 	image: { service: passthroughImageService() },
+	security: {
+		// Astro's own check trusts the raw socket, not X-Forwarded-Proto: behind a
+		// TLS-terminating proxy (Caddy -> plain HTTP to this app) it sees every
+		// request as http://, so it rejects every form POST as "cross-site" once a
+		// browser sends Origin: https://. same-origin.ts guards every write route
+		// already, comparing hostnames (not scheme), so this is redundant and broken
+		// here rather than redundant and harmless.
+		checkOrigin: false,
+	},
 	vite: {
 		plugins: [tailwindcss()],
 		// No inline scripts, so the CSP can be script-src 'self'.
