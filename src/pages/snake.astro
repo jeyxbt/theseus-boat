@@ -1,0 +1,125 @@
+---
+import Shell from "../core/components/Shell.astro";
+import SubNav from "../components/SubNav.astro";
+---
+
+<Shell title="Snake">
+	<SubNav />
+	<section class="wrap py-10">
+		<h1 class="font-display text-5xl font-extrabold">Snake</h1>
+		<p class="mt-2 max-w-xl">Eat the orange squares and grow. Don't hit the walls or yourself. Use arrow keys, WASD, or the buttons below.</p>
+		<div class="mt-6 flex flex-wrap items-center gap-4 font-mono text-sm">
+			<span>Score: <b id="sn-score">0</b></span>
+			<span>Best: <b id="sn-best">0</b></span>
+			<span id="sn-msg">Press Start to play.</span>
+		</div>
+		<canvas id="sn-canvas" width="400" height="400" class="mt-4 block aspect-square w-full max-w-[400px] border-2 border-ink bg-paper shadow-[6px_6px_0_#111111]" style="touch-action:none"></canvas>
+		<div class="mt-6 flex flex-wrap gap-3">
+			<button type="button" id="sn-start" class="btn">Start</button>
+			<button type="button" id="sn-pause" class="btn">Pause</button>
+		</div>
+		<div class="mt-6 grid w-40 grid-cols-3 gap-2">
+			<span></span><button type="button" class="btn" data-dir="up" aria-label="Up">^</button><span></span>
+			<button type="button" class="btn" data-dir="left" aria-label="Left">&lt;</button>
+			<button type="button" class="btn" data-dir="down" aria-label="Down">v</button>
+			<button type="button" class="btn" data-dir="right" aria-label="Right">&gt;</button>
+		</div>
+	</section>
+</Shell>
+
+<script>
+	const cv = document.getElementById("sn-canvas") as HTMLCanvasElement;
+	const ctx = cv.getContext("2d")!;
+	const N = 20, S = cv.width / N;
+	const scoreEl = document.getElementById("sn-score")!;
+	const bestEl = document.getElementById("sn-best")!;
+	const msg = document.getElementById("sn-msg")!;
+	let snake: { x: number; y: number }[] = [];
+	let dir = { x: 1, y: 0 }, next = { x: 1, y: 0 };
+	let food = { x: 5, y: 5 };
+	let score = 0, best = 0, timer: number | undefined, running = false, paused = false;
+	try { best = Number(localStorage.getItem("snake-best")) || 0; } catch (e) { best = 0; }
+	bestEl.textContent = String(best);
+
+	function placeFood() {
+		for (;;) {
+			const f = { x: Math.floor(Math.random() * N), y: Math.floor(Math.random() * N) };
+			if (!snake.some((s) => s.x === f.x && s.y === f.y)) { food = f; return; }
+		}
+	}
+	function draw() {
+		ctx.fillStyle = "#EEF0F2";
+		ctx.fillRect(0, 0, cv.width, cv.height);
+		ctx.fillStyle = "#FF5B1F";
+		ctx.fillRect(food.x * S + 2, food.y * S + 2, S - 4, S - 4);
+		snake.forEach((s, i) => {
+			ctx.fillStyle = i === 0 ? "#1F3BFF" : "#111111";
+			ctx.fillRect(s.x * S + 1, s.y * S + 1, S - 2, S - 2);
+		});
+	}
+	function end() {
+		running = false;
+		clearInterval(timer);
+		msg.textContent = "Game over. Press Start to try again.";
+		if (score > best) {
+			best = score;
+			bestEl.textContent = String(best);
+			try { localStorage.setItem("snake-best", String(best)); } catch (e) {}
+		}
+	}
+	function step() {
+		if (paused) return;
+		dir = next;
+		const h = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+		const eat = h.x === food.x && h.y === food.y;
+		const body = eat ? snake : snake.slice(0, -1);
+		if (h.x < 0 || h.y < 0 || h.x >= N || h.y >= N || body.some((s) => s.x === h.x && s.y === h.y)) { end(); draw(); return; }
+		snake.unshift(h);
+		if (eat) { score++; scoreEl.textContent = String(score); placeFood(); } else snake.pop();
+		draw();
+	}
+	function start() {
+		snake = [{ x: 8, y: 10 }, { x: 7, y: 10 }, { x: 6, y: 10 }];
+		dir = { x: 1, y: 0 }; next = dir;
+		score = 0; scoreEl.textContent = "0";
+		paused = false; running = true;
+		placeFood();
+		msg.textContent = "Go!";
+		clearInterval(timer);
+		timer = window.setInterval(step, 120);
+		draw();
+	}
+	function turn(d: string) {
+		const m: Record<string, { x: number; y: number }> = {
+			up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 },
+		};
+		const n = m[d];
+		if (n && !(n.x === -dir.x && n.y === -dir.y)) next = n;
+	}
+	document.addEventListener("keydown", (e) => {
+		const k: Record<string, string> = {
+			ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right",
+			w: "up", s: "down", a: "left", d: "right",
+		};
+		const d = k[e.key];
+		if (d && running) { e.preventDefault(); turn(d); }
+	});
+	document.querySelectorAll<HTMLElement>("[data-dir]").forEach((b) =>
+		b.addEventListener("click", () => turn(b.dataset.dir || "")),
+	);
+	document.getElementById("sn-start")!.addEventListener("click", start);
+	document.getElementById("sn-pause")!.addEventListener("click", () => {
+		if (!running) return;
+		paused = !paused;
+		msg.textContent = paused ? "Paused." : "Go!";
+	});
+	let tx = 0, ty = 0;
+	cv.addEventListener("touchstart", (e) => { tx = e.touches[0].clientX; ty = e.touches[0].clientY; });
+	cv.addEventListener("touchend", (e) => {
+		const dx = e.changedTouches[0].clientX - tx, dy = e.changedTouches[0].clientY - ty;
+		if (Math.max(Math.abs(dx), Math.abs(dy)) < 20) return;
+		turn(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : dy > 0 ? "down" : "up");
+	});
+	snake = [{ x: 8, y: 10 }, { x: 7, y: 10 }, { x: 6, y: 10 }];
+	draw();
+</script>
